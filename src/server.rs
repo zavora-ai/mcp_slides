@@ -319,4 +319,35 @@ impl SlidesServer {
         pres.set_slide_size(size);
         success("Set slide size", json!({ "preset": input.preset }))
     }
+
+    #[tool(description = "Read a slide: its shapes (kind + text) and speaker notes.")]
+    async fn read_slide(&self, Parameters(input): Parameters<SlideIndexInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        match pres.slide_mut(input.slide) {
+            Ok(s) => {
+                let shapes: Vec<_> = s
+                    .shapes()
+                    .into_iter()
+                    .map(|si| json!({ "kind": si.kind, "text": si.text }))
+                    .collect();
+                success(
+                    "Read slide",
+                    json!({ "slide": input.slide, "shapes": shapes, "notes": s.notes() }),
+                )
+            }
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Get a markdown outline of the whole deck (titles, bullets, notes).")]
+    async fn to_markdown(&self, Parameters(input): Parameters<HandleInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        success("Deck outline", json!({ "markdown": pres.to_markdown() }))
+    }
 }

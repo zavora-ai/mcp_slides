@@ -51,3 +51,101 @@ description = "List available deck templates for create_presentation."
 risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
+
+[[tools]]
+name = "add_slide"
+description = "Add a slide. layout: title, title_content (default), section_header, two_content, blank. Returns the new slide index."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "duplicate_slide"
+description = "Duplicate the slide at `slide`; the copy is inserted right after it."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "delete_slide"
+description = "Delete the slide at `slide`."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "move_slide"
+description = "Move the slide at `from` to position `to`."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_slide_layout"
+description = "Set a slide's layout (title, title_content, section_header, two_content, blank)."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_title"
+description = "Set the title text of a slide."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_bullets"
+description = "Set the body bullets of a slide. Each item: text, optional level (0=top), optional bold."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_text_box"
+description = "Add a positioned text box (position/size in inches) with optional formatting."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_notes"
+description = "Set the speaker notes of a slide."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "apply_theme"
+description = "Apply a theme to the deck: accent color (overrides accent1) and heading/body fonts."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_background"
+description = "Set a slide's background to a solid color (hex)."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_slide_size"
+description = "Set the deck slide size: 16:9 (default), 4:3, or 16:10."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "read_slide"
+description = "Read a slide: its shapes (kind + text) and speaker notes."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "to_markdown"
+description = "Get a markdown outline of the whole deck (titles, bullets, notes)."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []

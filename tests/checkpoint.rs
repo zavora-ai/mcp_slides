@@ -89,3 +89,45 @@ fn create_save_reopen_and_unknown_handle() {
     assert_eq!(miss["status"], "error");
     assert_eq!(miss["category"], "not_found");
 }
+
+#[test]
+fn full_authoring_flow() {
+    let mut s = Server::start();
+    let h = s.call(2, "create_presentation", json!({}))["data"]["handle"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    s.call(3, "apply_theme", json!({"handle": h, "accent": "#E91E63", "heading_font": "Georgia"}));
+    let added = s.call(4, "add_slide", json!({"handle": h, "layout": "title_content"}));
+    assert_eq!(added["data"]["slide_index"], 0);
+    s.call(5, "set_title", json!({"handle": h, "slide": 0, "text": "Roadmap"}));
+    s.call(6, "add_bullets", json!({"handle": h, "slide": 0,
+        "items": [{"text": "Q1"}, {"text": "EMEA", "level": 1}]}));
+    s.call(7, "set_notes", json!({"handle": h, "slide": 0, "text": "Lead with Q1"}));
+    s.call(8, "set_background", json!({"handle": h, "slide": 0, "color": "#F5F5F5"}));
+
+    // read_slide reflects authored content.
+    let read = s.call(9, "read_slide", json!({"handle": h, "slide": 0}));
+    assert_eq!(read["status"], "success");
+    assert_eq!(read["data"]["notes"], "Lead with Q1");
+    let shapes = read["data"]["shapes"].as_array().unwrap();
+    assert_eq!(shapes[0]["kind"], "title");
+    assert_eq!(shapes[0]["text"], "Roadmap");
+
+    // to_markdown contains the title and the nested bullet + notes.
+    let md = s.call(10, "to_markdown", json!({"handle": h}));
+    let text = md["data"]["markdown"].as_str().unwrap();
+    assert!(text.contains("- Roadmap"));
+    assert!(text.contains("  - EMEA"));
+    assert!(text.contains("notes: Lead with Q1"));
+
+    // Save and reopen as a valid package.
+    let out = std::env::temp_dir().join("slides_mcp_authoring.pptx");
+    let saved = s.call(11, "save_presentation",
+        json!({"handle": h, "output_path": out.to_str().unwrap()}));
+    assert_eq!(saved["status"], "success");
+    let pkg = zavora_slide_opc::OpcPackage::open(&out).unwrap();
+    assert!(pkg.get_part("/ppt/slides/slide1.xml").is_some());
+    std::fs::remove_file(&out).ok();
+}
