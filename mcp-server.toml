@@ -1,0 +1,53 @@
+server_id = "slides_mcp"
+display_name = "Slides"
+version = "0.1.0"
+domain = "presentations"
+sdk_version = "0.1.0"
+risk_level = "low"
+writes_allowed = "yes"
+transports = ["stdio"]
+credentials = []
+governance_gates = []
+environments = ["development", "staging", "production"]
+
+[[tools]]
+name = "create_presentation"
+description = "Create a new presentation. format: omit or 'blank' for a blank 16:9 deck (business:* deck templates land in a later phase). Returns a handle."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "open_presentation"
+description = "Open an existing .pptx file from disk. Returns a handle. (Not yet implemented — returns engine_unsupported until a later phase.)"
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "save_presentation"
+description = "Save a presentation to disk as .pptx."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "close_presentation"
+description = "Close a presentation and free its memory."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "describe_presentation"
+description = "Describe a presentation: slide count (more detail in a later phase)."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "list_templates"
+description = "List available deck templates for create_presentation."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []

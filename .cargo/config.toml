@@ -1,0 +1,5 @@
+# Local development override — uses local zavora-slide.
+# Remove or comment out this section before `cargo publish`.
+[patch.crates-io]
+zavora-slide = { path = "../../zavora-slide/crates/zavora-slide" }
+zavora-slide-opc = { path = "../../zavora-slide/crates/zavora-slide-opc" }
