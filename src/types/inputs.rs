@@ -116,6 +116,19 @@ pub struct SetNotesInput {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct FormatTextInput {
+    pub handle: String,
+    pub slide: usize,
+    /// Placeholder to format: "title" or "body".
+    pub placeholder: String,
+    pub bold: Option<bool>,
+    pub italic: Option<bool>,
+    pub underline: Option<bool>,
+    pub size_pt: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ApplyThemeInput {
     pub handle: String,
     /// Accent color hex (overrides accent1), e.g. "#E91E63".

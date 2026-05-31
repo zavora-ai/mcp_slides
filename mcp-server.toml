@@ -116,6 +116,13 @@ requires_approval = false
 credential_bindings = []
 
 [[tools]]
+name = "format_text"
+description = "Apply character formatting (bold/italic/underline/size_pt) to a placeholder's text (\"title\" or \"body\") on an opened slide, editing it in place."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
 name = "apply_theme"
 description = "Apply a theme to the deck: accent color (overrides accent1) and heading/body fonts."
 risk_class = "local_write"

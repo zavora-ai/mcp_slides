@@ -8,7 +8,7 @@ use crate::error::{category, engine_error, unknown_handle};
 use crate::store::{Shared, new_store};
 use crate::types::inputs::{
     AddBulletsInput, AddImageInput, AddShapeInput, AddSlideInput, AddTableInput, ApplyThemeInput,
-    CreateInput, HandleInput, MoveSlideInput, OpenInput, RenderSlideInput, SavePdfInput, SaveInput,
+    CreateInput, FormatTextInput, HandleInput, MoveSlideInput, OpenInput, RenderSlideInput, SavePdfInput, SaveInput,
     SetBackgroundInput, SetLayoutInput, SetNotesInput, SetSlideSizeInput, SetTableCellInput,
     SetTitleInput, SlideIndexInput, TextBoxInput,
 };
@@ -284,6 +284,34 @@ impl SlidesServer {
                 s.set_notes(&input.text);
                 success("Set notes", json!({ "slide": input.slide }))
             }
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Apply character formatting (bold/italic/underline/size_pt) to a placeholder's \
+        text (\"title\" or \"body\") on an opened slide, editing it in place."
+    )]
+    async fn format_text(&self, Parameters(input): Parameters<FormatTextInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.format_placeholder(
+            &input.placeholder,
+            input.bold,
+            input.italic,
+            input.underline,
+            input.size_pt,
+        ) {
+            Ok(()) => success(
+                "Formatted text",
+                json!({ "slide": input.slide, "placeholder": input.placeholder }),
+            ),
             Err(e) => engine_error(e),
         }
     }
