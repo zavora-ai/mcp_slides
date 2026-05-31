@@ -140,3 +140,60 @@ pub struct SetSlideSizeInput {
     /// "16:9" (default), "4:3", or "16:10".
     pub preset: String,
 }
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AddImageInput {
+    pub handle: String,
+    pub slide: usize,
+    pub image_path: String,
+    /// Position/size in inches.
+    pub x_in: f64,
+    pub y_in: f64,
+    pub w_in: f64,
+    pub h_in: f64,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AddShapeInput {
+    pub handle: String,
+    pub slide: usize,
+    /// rect, round_rect, ellipse, triangle, arrow, line, callout.
+    pub preset: String,
+    pub x_in: f64,
+    pub y_in: f64,
+    pub w_in: f64,
+    pub h_in: f64,
+    /// Fill color hex (e.g. "#4472C4").
+    pub fill: Option<String>,
+    /// Outline color hex.
+    pub outline: Option<String>,
+    /// Outline width in points (default 1.0 when outline set).
+    pub outline_pt: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AddTableInput {
+    pub handle: String,
+    pub slide: usize,
+    pub rows: usize,
+    pub cols: usize,
+    pub x_in: f64,
+    pub y_in: f64,
+    pub w_in: f64,
+    pub h_in: f64,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SetTableCellInput {
+    pub handle: String,
+    pub slide: usize,
+    /// Table index on the slide (returned by add_table).
+    pub table: usize,
+    pub row: usize,
+    pub col: usize,
+    pub text: String,
+}

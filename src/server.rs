@@ -2,14 +2,15 @@
 
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
-use zavora_slide::{Bullet, Emu, Fill, Layout, Presentation, SlideSize, ThemeSpec};
+use zavora_slide::{Bullet, Emu, Fill, ImageSrc, Layout, Presentation, ShapePreset, SlideSize, ThemeSpec};
 
 use crate::error::{category, engine_error, unknown_handle};
 use crate::store::{Shared, new_store};
 use crate::types::inputs::{
-    AddBulletsInput, AddSlideInput, ApplyThemeInput, CreateInput, HandleInput, MoveSlideInput,
-    OpenInput, SaveInput, SetBackgroundInput, SetLayoutInput, SetNotesInput, SetSlideSizeInput,
-    SetTitleInput, SlideIndexInput, TextBoxInput,
+    AddBulletsInput, AddImageInput, AddShapeInput, AddSlideInput, AddTableInput, ApplyThemeInput,
+    CreateInput, HandleInput, MoveSlideInput, OpenInput, SaveInput, SetBackgroundInput,
+    SetLayoutInput, SetNotesInput, SetSlideSizeInput, SetTableCellInput, SetTitleInput,
+    SlideIndexInput, TextBoxInput,
 };
 use crate::types::responses::{error, success};
 
@@ -349,5 +350,103 @@ impl SlidesServer {
             return unknown_handle(&input.handle);
         };
         success("Deck outline", json!({ "markdown": pres.to_markdown() }))
+    }
+
+    #[tool(description = "Add an image (PNG/JPEG) to a slide at the given position/size in inches.")]
+    async fn add_image(&self, Parameters(input): Parameters<AddImageInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let res = pres.slide_mut(input.slide).and_then(|mut s| {
+            s.add_image(
+                ImageSrc::Path(input.image_path.clone().into()),
+                Emu::inches(input.x_in),
+                Emu::inches(input.y_in),
+                Emu::inches(input.w_in),
+                Emu::inches(input.h_in),
+            )
+        });
+        match res {
+            Ok(()) => success("Added image", json!({ "slide": input.slide })),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Add an auto-shape: rect, round_rect, ellipse, triangle, arrow, line, callout. \
+        Position/size in inches; optional fill/outline hex."
+    )]
+    async fn add_shape(&self, Parameters(input): Parameters<AddShapeInput>) -> String {
+        let Some(preset) = ShapePreset::parse(&input.preset) else {
+            return error(
+                category::INVALID_INPUT,
+                format!("Unknown shape preset '{}'", input.preset),
+                "Use rect, round_rect, ellipse, triangle, arrow, line, or callout.",
+            );
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        let shape = slide.add_shape(
+            preset,
+            Emu::inches(input.x_in),
+            Emu::inches(input.y_in),
+            Emu::inches(input.w_in),
+            Emu::inches(input.h_in),
+        );
+        if let Some(f) = &input.fill {
+            shape.set_fill(f);
+        }
+        if let Some(o) = &input.outline {
+            shape.set_outline(o, input.outline_pt.unwrap_or(1.0));
+        }
+        success("Added shape", json!({ "slide": input.slide }))
+    }
+
+    #[tool(description = "Add a table to a slide. Returns the table index for set_table_cell.")]
+    async fn add_table(&self, Parameters(input): Parameters<AddTableInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        let id = slide.add_table(
+            input.rows,
+            input.cols,
+            Emu::inches(input.x_in),
+            Emu::inches(input.y_in),
+            Emu::inches(input.w_in),
+            Emu::inches(input.h_in),
+        );
+        success("Added table", json!({ "slide": input.slide, "table": id.0 }))
+    }
+
+    #[tool(description = "Set the text of a table cell (table index from add_table).")]
+    async fn set_table_cell(&self, Parameters(input): Parameters<SetTableCellInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let res = pres.slide_mut(input.slide).and_then(|mut s| {
+            s.set_table_cell(
+                zavora_slide::TableId(input.table),
+                input.row,
+                input.col,
+                &input.text,
+            )
+        });
+        match res {
+            Ok(()) => success("Set table cell", json!({ "slide": input.slide, "table": input.table })),
+            Err(e) => engine_error(e),
+        }
     }
 }

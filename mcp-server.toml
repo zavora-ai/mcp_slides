@@ -149,3 +149,31 @@ description = "Get a markdown outline of the whole deck (titles, bullets, notes)
 risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
+
+[[tools]]
+name = "add_image"
+description = "Add an image (PNG/JPEG) to a slide at the given position/size in inches."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_shape"
+description = "Add an auto-shape (rect, round_rect, ellipse, triangle, arrow, line, callout) with optional fill/outline."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_table"
+description = "Add a table to a slide. Returns the table index for set_table_cell."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_table_cell"
+description = "Set the text of a table cell (table index from add_table)."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
