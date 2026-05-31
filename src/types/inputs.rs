@@ -63,3 +63,53 @@ pub struct SetLayoutInput {
     pub slide: usize,
     pub layout: String,
 }
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SetTitleInput {
+    pub handle: String,
+    pub slide: usize,
+    pub text: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct BulletItem {
+    pub text: String,
+    /// Indent level (0 = top level). Default 0.
+    pub level: Option<u8>,
+    pub bold: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AddBulletsInput {
+    pub handle: String,
+    pub slide: usize,
+    pub items: Vec<BulletItem>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TextBoxInput {
+    pub handle: String,
+    pub slide: usize,
+    pub text: String,
+    /// Position/size in inches.
+    pub x_in: f64,
+    pub y_in: f64,
+    pub w_in: f64,
+    pub h_in: f64,
+    pub bold: Option<bool>,
+    pub italic: Option<bool>,
+    pub size_pt: Option<f64>,
+    /// Font color hex (e.g. "#FF0000").
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SetNotesInput {
+    pub handle: String,
+    pub slide: usize,
+    pub text: String,
+}

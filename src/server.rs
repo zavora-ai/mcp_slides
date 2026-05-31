@@ -2,13 +2,13 @@
 
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
-use zavora_slide::{Layout, Presentation};
+use zavora_slide::{Bullet, Emu, Layout, Presentation};
 
 use crate::error::{category, engine_error, unknown_handle};
 use crate::store::{Shared, new_store};
 use crate::types::inputs::{
-    AddSlideInput, CreateInput, HandleInput, MoveSlideInput, OpenInput, SaveInput, SetLayoutInput,
-    SlideIndexInput,
+    AddBulletsInput, AddSlideInput, CreateInput, HandleInput, MoveSlideInput, OpenInput, SaveInput,
+    SetLayoutInput, SetNotesInput, SetTitleInput, SlideIndexInput, TextBoxInput,
 };
 use crate::types::responses::{error, success};
 
@@ -188,5 +188,81 @@ impl SlidesServer {
             )));
         }
         success("Set slide layout", json!({ "slide": input.slide, "layout": input.layout }))
+    }
+
+    #[tool(description = "Set the title text of a slide.")]
+    async fn set_title(&self, Parameters(input): Parameters<SetTitleInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        match pres.slide_mut(input.slide).and_then(|mut s| s.set_title(&input.text)) {
+            Ok(()) => success("Set title", json!({ "slide": input.slide })),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Set the body bullets of a slide. Each item: text, optional level (0=top), optional bold.")]
+    async fn add_bullets(&self, Parameters(input): Parameters<AddBulletsInput>) -> String {
+        let bullets: Vec<Bullet> = input
+            .items
+            .iter()
+            .map(|b| Bullet { text: b.text.clone(), level: b.level.unwrap_or(0), bold: b.bold.unwrap_or(false) })
+            .collect();
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        match pres.slide_mut(input.slide).and_then(|mut s| s.add_bullets(&bullets)) {
+            Ok(()) => success("Added bullets", json!({ "slide": input.slide, "count": bullets.len() })),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Add a positioned text box (position/size in inches) with optional formatting.")]
+    async fn add_text_box(&self, Parameters(input): Parameters<TextBoxInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        let shape = slide.add_text_box(
+            &input.text,
+            Emu::inches(input.x_in),
+            Emu::inches(input.y_in),
+            Emu::inches(input.w_in),
+            Emu::inches(input.h_in),
+        );
+        if let Some(b) = input.bold {
+            shape.bold(b);
+        }
+        if let Some(i) = input.italic {
+            shape.italic(i);
+        }
+        if let Some(sz) = input.size_pt {
+            shape.size(sz);
+        }
+        if let Some(c) = &input.color {
+            shape.color(c);
+        }
+        success("Added text box", json!({ "slide": input.slide }))
+    }
+
+    #[tool(description = "Set the speaker notes of a slide.")]
+    async fn set_notes(&self, Parameters(input): Parameters<SetNotesInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        match pres.slide_mut(input.slide) {
+            Ok(mut s) => {
+                s.set_notes(&input.text);
+                success("Set notes", json!({ "slide": input.slide }))
+            }
+            Err(e) => engine_error(e),
+        }
     }
 }
