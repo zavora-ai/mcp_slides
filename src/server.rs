@@ -68,14 +68,19 @@ impl SlidesServer {
         success("Created presentation", json!({ "handle": handle, "slide_count": count }))
     }
 
-    #[tool(description = "Open an existing .pptx file from disk. Returns a handle.")]
-    async fn open_presentation(&self, Parameters(_input): Parameters<OpenInput>) -> String {
-        // Faithful open/round-trip is engine Requirement 3 (later phase).
-        error(
-            category::ENGINE_UNSUPPORTED,
-            "Opening existing presentations is not yet implemented",
-            "Use create_presentation; open support is coming in a later phase.",
-        )
+    #[tool(
+        description = "Open an existing .pptx file from disk. Returns a handle. Faithful round-trip \
+        on save if unedited; editing an opened deck currently rebuilds from extracted text (lossy)."
+    )]
+    async fn open_presentation(&self, Parameters(input): Parameters<OpenInput>) -> String {
+        match Presentation::open(&input.file_path) {
+            Ok(pres) => {
+                let count = pres.slide_count();
+                let handle = self.store.write().await.insert(pres);
+                success("Opened presentation", json!({ "handle": handle, "slide_count": count }))
+            }
+            Err(e) => engine_error(e),
+        }
     }
 
     #[tool(description = "Save a presentation to disk as .pptx.")]
@@ -342,7 +347,7 @@ impl SlidesServer {
         let Some(pres) = store.get_mut(&input.handle) else {
             return unknown_handle(&input.handle);
         };
-        match pres.slide_mut(input.slide) {
+        match pres.slide(input.slide) {
             Ok(s) => {
                 let shapes: Vec<_> = s
                     .shapes()

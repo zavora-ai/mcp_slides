@@ -19,7 +19,7 @@ credential_bindings = []
 
 [[tools]]
 name = "open_presentation"
-description = "Open an existing .pptx file from disk. Returns a handle. (Not yet implemented — returns engine_unsupported until a later phase.)"
+description = "Open an existing .pptx file from disk. Returns a handle. Faithful round-trip on save if unedited; editing an opened deck rebuilds from extracted text (lossy)."
 risk_class = "local_write"
 requires_approval = false
 credential_bindings = []
