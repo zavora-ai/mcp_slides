@@ -32,3 +32,34 @@ pub struct SaveInput {
 pub struct HandleInput {
     pub handle: String,
 }
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AddSlideInput {
+    pub handle: String,
+    /// Layout: title, title_content (default), section_header, two_content, blank.
+    pub layout: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SlideIndexInput {
+    pub handle: String,
+    pub slide: usize,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MoveSlideInput {
+    pub handle: String,
+    pub from: usize,
+    pub to: usize,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SetLayoutInput {
+    pub handle: String,
+    pub slide: usize,
+    pub layout: String,
+}

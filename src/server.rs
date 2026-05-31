@@ -2,11 +2,14 @@
 
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
-use zavora_slide::Presentation;
+use zavora_slide::{Layout, Presentation};
 
 use crate::error::{category, engine_error, unknown_handle};
 use crate::store::{Shared, new_store};
-use crate::types::inputs::{CreateInput, HandleInput, OpenInput, SaveInput};
+use crate::types::inputs::{
+    AddSlideInput, CreateInput, HandleInput, MoveSlideInput, OpenInput, SaveInput, SetLayoutInput,
+    SlideIndexInput,
+};
 use crate::types::responses::{error, success};
 
 /// The Slides MCP server. Holds open presentations in an in-memory handle store.
@@ -97,5 +100,93 @@ impl SlidesServer {
     async fn list_templates(&self) -> String {
         // Real business:* templates land in Phase 4.
         success("No deck templates available yet", json!({ "templates": [] }))
+    }
+
+    #[tool(
+        description = "Add a slide. layout: title, title_content (default), section_header, \
+        two_content, blank. Returns the new slide index."
+    )]
+    async fn add_slide(&self, Parameters(input): Parameters<AddSlideInput>) -> String {
+        let layout = match input.layout.as_deref() {
+            None => Layout::TitleContent,
+            Some(s) => match Layout::parse(s) {
+                Some(l) => l,
+                None => {
+                    return error(
+                        category::INVALID_INPUT,
+                        format!("Unknown layout '{s}'"),
+                        "Use title, title_content, section_header, two_content, or blank.",
+                    );
+                }
+            },
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let idx = pres.add_slide(layout);
+        success("Added slide", json!({ "slide_index": idx, "slide_count": pres.slide_count() }))
+    }
+
+    #[tool(description = "Duplicate the slide at `slide`; the copy is inserted right after it.")]
+    async fn duplicate_slide(&self, Parameters(input): Parameters<SlideIndexInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        match pres.duplicate_slide(input.slide) {
+            Ok(idx) => success("Duplicated slide", json!({ "slide_index": idx, "slide_count": pres.slide_count() })),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Delete the slide at `slide`.")]
+    async fn delete_slide(&self, Parameters(input): Parameters<SlideIndexInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        match pres.delete_slide(input.slide) {
+            Ok(()) => success("Deleted slide", json!({ "slide_count": pres.slide_count() })),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Move the slide at `from` to position `to`.")]
+    async fn move_slide(&self, Parameters(input): Parameters<MoveSlideInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        match pres.move_slide(input.from, input.to) {
+            Ok(()) => success("Moved slide", json!({ "from": input.from, "to": input.to })),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Set a slide's layout. Accepted: title, title_content, section_header, \
+        two_content, blank. (Phase 0 uses a single structural layout; this validates the name.)"
+    )]
+    async fn set_slide_layout(&self, Parameters(input): Parameters<SetLayoutInput>) -> String {
+        if Layout::parse(&input.layout).is_none() {
+            return error(
+                category::INVALID_INPUT,
+                format!("Unknown layout '{}'", input.layout),
+                "Use title, title_content, section_header, two_content, or blank.",
+            );
+        }
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        // Validate the slide exists.
+        if pres.slide_mut(input.slide).is_err() {
+            return engine_error(zavora_slide::SlideError::NotFound(format!(
+                "slide index {}",
+                input.slide
+            )));
+        }
+        success("Set slide layout", json!({ "slide": input.slide, "layout": input.layout }))
     }
 }
