@@ -304,18 +304,33 @@ impl SlidesServer {
         success("Applied theme", json!({}))
     }
 
-    #[tool(description = "Set a slide's background to a solid color (hex, e.g. \"#F5F5F5\").")]
+    #[tool(
+        description = "Set a slide's background to a solid color (hex, e.g. \"#F5F5F5\") via `color`, \
+        or to a stretched PNG/JPEG via `image_path`."
+    )]
     async fn set_background(&self, Parameters(input): Parameters<SetBackgroundInput>) -> String {
         let mut store = self.store.write().await;
         let Some(pres) = store.get_mut(&input.handle) else {
             return unknown_handle(&input.handle);
         };
-        match pres.slide_mut(input.slide) {
-            Ok(mut s) => {
-                s.set_background(Fill::Solid(input.color.clone()));
-                success("Set background", json!({ "slide": input.slide, "color": input.color }))
+        let mut s = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        if let Some(path) = &input.image_path {
+            match s.set_background_image(ImageSrc::Path(path.into())) {
+                Ok(()) => success("Set background", json!({ "slide": input.slide, "image_path": path })),
+                Err(e) => engine_error(e),
             }
-            Err(e) => engine_error(e),
+        } else if let Some(color) = &input.color {
+            s.set_background(Fill::Solid(color.clone()));
+            success("Set background", json!({ "slide": input.slide, "color": color }))
+        } else {
+            error(
+                category::INVALID_INPUT,
+                "set_background requires either 'color' or 'image_path'",
+                "Provide a hex color or a path to a PNG/JPEG.",
+            )
         }
     }
 

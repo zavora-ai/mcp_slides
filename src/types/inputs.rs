@@ -129,8 +129,10 @@ pub struct ApplyThemeInput {
 pub struct SetBackgroundInput {
     pub handle: String,
     pub slide: usize,
-    /// Solid fill color hex, e.g. "#F5F5F5".
-    pub color: String,
+    /// Solid fill color hex, e.g. "#F5F5F5". Ignored if `image_path` is set.
+    pub color: Option<String>,
+    /// Path to a PNG/JPEG to use as a stretched picture background.
+    pub image_path: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
