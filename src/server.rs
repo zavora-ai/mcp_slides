@@ -35,21 +35,37 @@ impl Default for SlidesServer {
 #[tool_router(server_handler)]
 impl SlidesServer {
     #[tool(
-        description = "Create a new presentation. format: omit or 'blank' for a blank 16:9 deck. \
-        (business:* deck templates land in a later phase.) Returns a handle for subsequent calls."
+        description = "Create a new presentation. format: omit or 'blank' for a blank 16:9 deck, \
+        or 'business:<pitch|quarterly_review|training|roadmap>' with an optional `data` object to \
+        fill a template (see list_templates). Returns a handle."
     )]
     async fn create_presentation(&self, Parameters(input): Parameters<CreateInput>) -> String {
-        if let Some(fmt) = input.format.as_deref() {
-            if fmt != "blank" {
-                return error(
-                    category::ENGINE_UNSUPPORTED,
-                    format!("Unknown or unsupported format '{fmt}'"),
-                    "Use 'blank' (deck templates are not yet available).",
-                );
+        let pres = match input.format.as_deref() {
+            None | Some("blank") => Presentation::new(),
+            Some(fmt) => {
+                let Some(name) = fmt.strip_prefix("business:") else {
+                    return error(
+                        category::INVALID_INPUT,
+                        format!("Unknown format '{fmt}'"),
+                        "Use 'blank' or 'business:<template>' (see list_templates).",
+                    );
+                };
+                let data = input.data.clone().unwrap_or_else(|| json!({}));
+                match crate::templates::build(name, &data) {
+                    Some(p) => p,
+                    None => {
+                        return error(
+                            category::INVALID_INPUT,
+                            format!("Unknown template '{name}'"),
+                            "Call list_templates for valid template ids.",
+                        );
+                    }
+                }
             }
-        }
-        let handle = self.store.write().await.insert(Presentation::new());
-        success("Created blank presentation", json!({ "handle": handle }))
+        };
+        let count = pres.slide_count();
+        let handle = self.store.write().await.insert(pres);
+        success("Created presentation", json!({ "handle": handle, "slide_count": count }))
     }
 
     #[tool(description = "Open an existing .pptx file from disk. Returns a handle.")]
@@ -100,8 +116,7 @@ impl SlidesServer {
 
     #[tool(description = "List available deck templates for create_presentation.")]
     async fn list_templates(&self) -> String {
-        // Real business:* templates land in Phase 4.
-        success("No deck templates available yet", json!({ "templates": [] }))
+        success("Deck templates", json!({ "templates": crate::templates::catalog() }))
     }
 
     #[tool(

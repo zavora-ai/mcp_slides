@@ -4,6 +4,7 @@
 pub mod error;
 pub mod server;
 pub mod store;
+pub mod templates;
 pub mod types;
 
 pub use server::SlidesServer;
