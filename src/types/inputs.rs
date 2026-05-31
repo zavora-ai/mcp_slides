@@ -113,3 +113,30 @@ pub struct SetNotesInput {
     pub slide: usize,
     pub text: String,
 }
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ApplyThemeInput {
+    pub handle: String,
+    /// Accent color hex (overrides accent1), e.g. "#E91E63".
+    pub accent: Option<String>,
+    pub heading_font: Option<String>,
+    pub body_font: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SetBackgroundInput {
+    pub handle: String,
+    pub slide: usize,
+    /// Solid fill color hex, e.g. "#F5F5F5".
+    pub color: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SetSlideSizeInput {
+    pub handle: String,
+    /// "16:9" (default), "4:3", or "16:10".
+    pub preset: String,
+}

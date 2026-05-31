@@ -2,13 +2,14 @@
 
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
-use zavora_slide::{Bullet, Emu, Layout, Presentation};
+use zavora_slide::{Bullet, Emu, Fill, Layout, Presentation, SlideSize, ThemeSpec};
 
 use crate::error::{category, engine_error, unknown_handle};
 use crate::store::{Shared, new_store};
 use crate::types::inputs::{
-    AddBulletsInput, AddSlideInput, CreateInput, HandleInput, MoveSlideInput, OpenInput, SaveInput,
-    SetLayoutInput, SetNotesInput, SetTitleInput, SlideIndexInput, TextBoxInput,
+    AddBulletsInput, AddSlideInput, ApplyThemeInput, CreateInput, HandleInput, MoveSlideInput,
+    OpenInput, SaveInput, SetBackgroundInput, SetLayoutInput, SetNotesInput, SetSlideSizeInput,
+    SetTitleInput, SlideIndexInput, TextBoxInput,
 };
 use crate::types::responses::{error, success};
 
@@ -264,5 +265,58 @@ impl SlidesServer {
             }
             Err(e) => engine_error(e),
         }
+    }
+
+    #[tool(description = "Apply a theme to the deck: accent color (overrides accent1) and heading/body fonts.")]
+    async fn apply_theme(&self, Parameters(input): Parameters<ApplyThemeInput>) -> String {
+        let theme = ThemeSpec {
+            accent: input.accent,
+            heading_font: input.heading_font,
+            body_font: input.body_font,
+            ..Default::default()
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        pres.apply_theme(&theme);
+        success("Applied theme", json!({}))
+    }
+
+    #[tool(description = "Set a slide's background to a solid color (hex, e.g. \"#F5F5F5\").")]
+    async fn set_background(&self, Parameters(input): Parameters<SetBackgroundInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        match pres.slide_mut(input.slide) {
+            Ok(mut s) => {
+                s.set_background(Fill::Solid(input.color.clone()));
+                success("Set background", json!({ "slide": input.slide, "color": input.color }))
+            }
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Set the deck slide size: \"16:9\" (default), \"4:3\", or \"16:10\".")]
+    async fn set_slide_size(&self, Parameters(input): Parameters<SetSlideSizeInput>) -> String {
+        let size = match input.preset.as_str() {
+            "16:9" | "16x9" | "widescreen" => SlideSize::Widescreen,
+            "4:3" | "4x3" | "standard" => SlideSize::Standard,
+            "16:10" | "16x10" => SlideSize::Wide16x10,
+            other => {
+                return error(
+                    category::INVALID_INPUT,
+                    format!("Unknown slide size '{other}'"),
+                    "Use \"16:9\", \"4:3\", or \"16:10\".",
+                );
+            }
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        pres.set_slide_size(size);
+        success("Set slide size", json!({ "preset": input.preset }))
     }
 }
