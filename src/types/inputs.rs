@@ -125,6 +125,10 @@ pub struct FormatTextInput {
     pub italic: Option<bool>,
     pub underline: Option<bool>,
     pub size_pt: Option<f64>,
+    /// Font color hex (e.g. "#FF0000").
+    pub color: Option<String>,
+    /// Latin typeface name (e.g. "Calibri").
+    pub font: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]

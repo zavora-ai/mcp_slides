@@ -303,10 +303,14 @@ impl SlidesServer {
         };
         match slide.format_placeholder(
             &input.placeholder,
-            input.bold,
-            input.italic,
-            input.underline,
-            input.size_pt,
+            zavora_slide::RunFormat {
+                bold: input.bold,
+                italic: input.italic,
+                underline: input.underline,
+                size_pt: input.size_pt,
+                color: input.color.map(|c| c.trim_start_matches('#').to_string()),
+                font: input.font,
+            },
         ) {
             Ok(()) => success(
                 "Formatted text",
