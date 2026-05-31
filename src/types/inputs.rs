@@ -197,3 +197,20 @@ pub struct SetTableCellInput {
     pub col: usize,
     pub text: String,
 }
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RenderSlideInput {
+    pub handle: String,
+    pub slide: usize,
+    /// "png" (default) or "svg".
+    pub format: Option<String>,
+    pub output_path: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SavePdfInput {
+    pub handle: String,
+    pub output_path: String,
+}

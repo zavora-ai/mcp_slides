@@ -2,15 +2,15 @@
 
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
-use zavora_slide::{Bullet, Emu, Fill, ImageSrc, Layout, Presentation, ShapePreset, SlideSize, ThemeSpec};
+use zavora_slide::{Bullet, Emu, Fill, ImageSrc, Layout, Presentation, RenderFormat, ShapePreset, SlideSize, ThemeSpec};
 
 use crate::error::{category, engine_error, unknown_handle};
 use crate::store::{Shared, new_store};
 use crate::types::inputs::{
     AddBulletsInput, AddImageInput, AddShapeInput, AddSlideInput, AddTableInput, ApplyThemeInput,
-    CreateInput, HandleInput, MoveSlideInput, OpenInput, SaveInput, SetBackgroundInput,
-    SetLayoutInput, SetNotesInput, SetSlideSizeInput, SetTableCellInput, SetTitleInput,
-    SlideIndexInput, TextBoxInput,
+    CreateInput, HandleInput, MoveSlideInput, OpenInput, RenderSlideInput, SavePdfInput, SaveInput,
+    SetBackgroundInput, SetLayoutInput, SetNotesInput, SetSlideSizeInput, SetTableCellInput,
+    SetTitleInput, SlideIndexInput, TextBoxInput,
 };
 use crate::types::responses::{error, success};
 
@@ -446,6 +446,44 @@ impl SlidesServer {
         });
         match res {
             Ok(()) => success("Set table cell", json!({ "slide": input.slide, "table": input.table })),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Render a slide to an image file. format: 'png' (default) or 'svg'.")]
+    async fn render_slide(&self, Parameters(input): Parameters<RenderSlideInput>) -> String {
+        let fmt = match input.format.as_deref() {
+            None | Some("png") => RenderFormat::Png,
+            Some("svg") => RenderFormat::Svg,
+            Some(o) => {
+                return error(
+                    category::INVALID_INPUT,
+                    format!("Unknown format '{o}'"),
+                    "Use 'png' or 'svg'.",
+                );
+            }
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        match pres.render_slide(input.slide, fmt) {
+            Ok(bytes) => match std::fs::write(&input.output_path, bytes) {
+                Ok(()) => success("Rendered slide", json!({ "slide": input.slide, "output_path": input.output_path })),
+                Err(e) => error(category::IO_ERROR, e.to_string(), "Check the output path."),
+            },
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Export the whole deck to a PDF (one page per slide).")]
+    async fn save_pdf(&self, Parameters(input): Parameters<SavePdfInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        match pres.save_pdf(&input.output_path) {
+            Ok(()) => success("Saved PDF", json!({ "output_path": input.output_path })),
             Err(e) => engine_error(e),
         }
     }

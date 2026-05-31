@@ -177,3 +177,17 @@ description = "Set the text of a table cell (table index from add_table)."
 risk_class = "local_write"
 requires_approval = false
 credential_bindings = []
+
+[[tools]]
+name = "render_slide"
+description = "Render a slide to an image file. format: 'png' (default) or 'svg'."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "save_pdf"
+description = "Export the whole deck to a PDF (one page per slide)."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
