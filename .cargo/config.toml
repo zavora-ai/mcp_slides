@@ -3,3 +3,4 @@
 [patch.crates-io]
 zavora-slide = { path = "../../zavora-slide/crates/zavora-slide" }
 zavora-slide-opc = { path = "../../zavora-slide/crates/zavora-slide-opc" }
+zavora-slide-oxml = { path = "../../zavora-slide/crates/zavora-slide-oxml" }

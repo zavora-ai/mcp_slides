@@ -198,3 +198,311 @@ description = "Export the whole deck to a PDF (one page per slide)."
 risk_class = "local_write"
 requires_approval = false
 credential_bindings = []
+
+[[tools]]
+name = "add_paragraph"
+description = "Add a paragraph to a shape's text frame. Appends or inserts at a position."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "delete_paragraph"
+description = "Delete a paragraph by index from a shape's text frame."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "move_paragraph"
+description = "Reorder a paragraph within a shape's text frame."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_paragraph_format"
+description = "Set paragraph properties: alignment, level, spacing, line-spacing, bullet."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_run"
+description = "Add a run (text span) to a paragraph in a shape's text frame. Appends to the end of the paragraph. Optional formatting: bold, italic, size_pt, font, color. Requires an opened deck."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "edit_run"
+description = "Edit (replace) the text content of an existing run in a paragraph. The run's formatting is preserved. Requires an opened deck."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "delete_run"
+description = "Delete a run (or line break) by index from a paragraph. Requires an opened deck."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_line_break"
+description = "Insert a line break (BR element) into a paragraph. If position is omitted, appends to the end; otherwise inserts at the given run index. Requires an opened deck."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_run_format"
+description = "Set run formatting (character properties) on an existing run. Supports bold, italic, underline_style, size_pt, font, color (RGB hex), theme_color, strikethrough, baseline (superscript/subscript), and lang. All fields optional; only specified ones change."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_autofit"
+description = "Set the text-frame autofit behavior on a shape. Modes: \"none\" (text can overflow), \"shrink\" (shrink text on overflow), \"resize\" (resize shape to fit text). Optional font_scale_pct for shrink mode."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_shape_geometry"
+description = "Set the position (left/top), size (width/height) in inches, and optional rotation (degrees) of a shape. Requires an opened deck."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "delete_shape"
+description = "Delete a shape by index from a slide. Requires an opened deck."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "reorder_shape"
+description = "Move a shape to a different z-order position within the slide. Requires an opened deck."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_shape_fill"
+description = "Set the fill of a shape. fill_type: solid/gradient/pattern/none. Color accepts RGB hex or theme name. Requires an opened deck."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_shape_line"
+description = "Set the outline (line) of a shape. line_type: styled (color + width_pt, optional dash) or none. Requires an opened deck."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "inspect_slide"
+description = "Inspect a slide's layout: returns element bounding boxes, kinds, z-order, and findings for layout problems. Deterministic, read-only."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "check_contrast"
+description = "Check WCAG contrast and minimum font size on a slide. Returns per-run findings. Deterministic, read-only."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "diff_slide_render"
+description = "Compare two base64-encoded PNG renders and return a changed-region summary. Deterministic, read-only."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "table_add_row"
+description = "Add a row to a table. Appends at the bottom."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "table_remove_row"
+description = "Remove a row from a table by index."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "table_add_column"
+description = "Add a column to a table. Appends at the right."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "table_remove_column"
+description = "Remove a column from a table by index."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "merge_cells"
+description = "Merge a rectangular region of table cells."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "split_cell"
+description = "Split a previously merged table cell back to individual cells."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_table_sizing"
+description = "Set column width or row height in a table. dimension: column or row. Size in inches."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_cell_text"
+description = "Set the text content of a table cell."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_cell_style"
+description = "Set the style (fill color) of a table cell."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_image_crop"
+description = "Set crop on a picture shape. Values are percentage of image to crop from each side (0-100)."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_image_rotation"
+description = "Set rotation on a picture shape, in degrees clockwise."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "list_palettes"
+description = "List available color palettes with their swatches and intended tone."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "list_font_pairings"
+description = "List available font pairings (heading + body font combinations)."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "apply_layout_pattern"
+description = "Apply a layout pattern to a slide (two_column, icon_rows, stat, quote, divider, image_caption)."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "lint_design"
+description = "Lint a slide for design anti-patterns. Read-only."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "extract_outline"
+description = "Extract a structured JSON outline of the entire deck (titles, body, tables, notes). Read-only."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_hyperlink"
+description = "Set a hyperlink on a text run."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_click_action"
+description = "Set a click action on a shape (external URL or jump to slide)."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "get_doc_properties"
+description = "Get document core properties (title, author, subject, etc.)."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_doc_properties"
+description = "Set document core properties (title, author, subject, keywords, comments, category)."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_footer"
+description = "Set or hide footer text on a slide."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_autoshape"
+description = "Add an autoshape by OOXML preset name. Position/size in inches."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_connector"
+description = "Add a connector shape (straight, elbow, curved). Position/size in inches."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_freeform"
+description = "Add a freeform shape from a series of points. Position/size in inches."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_chart"
+description = "Add a chart (bar, column, line, pie, area, scatter) to a slide."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_chart_data"
+description = "Update the data (categories + series) of an existing chart."
+risk_class = "local_write"
+requires_approval = false
+credential_bindings = []

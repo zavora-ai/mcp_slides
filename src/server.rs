@@ -1,16 +1,27 @@
 //! MCP server with tool routing for presentation authoring.
 
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
-use serde_json::json;
-use zavora_slide::{Bullet, Emu, Fill, ImageSrc, Layout, Presentation, RenderFormat, ShapePreset, SlideSize, ThemeSpec};
+use serde_json::{Value, json};
+use zavora_slide::{AutoFit, Bullet, BulletKind, Emu, Fill, ImageSrc, Layout, Presentation, RenderFormat, ShapePreset, SlideSize, SpacingValue, ThemeSpec};
+use zavora_slide_oxml::SchemeColor;
 
 use crate::error::{category, engine_error, unknown_handle};
 use crate::store::{Shared, new_store};
 use crate::types::inputs::{
-    AddBulletsInput, AddImageInput, AddShapeInput, AddSlideInput, AddTableInput, ApplyThemeInput,
-    CreateInput, FormatTextInput, HandleInput, MoveSlideInput, OpenInput, RenderSlideInput, SavePdfInput, SaveInput,
-    SetBackgroundInput, SetLayoutInput, SetNotesInput, SetSlideSizeInput, SetTableCellInput,
-    SetTitleInput, SlideIndexInput, TextBoxInput,
+    AddAutoshapeInput, AddBulletsInput, AddChartInput, AddConnectorInput,
+    AddFreeformInput, AddImageInput, AddLineBreakInput, AddParagraphInput, AddRunInput,
+    AddShapeInput, AddSlideInput, AddTableInput, ApplyLayoutPatternInput, ApplyThemeInput,
+    CreateInput, DeleteParagraphInput, DeleteRunInput, DeleteShapeInput,
+    DiffSlideRenderInput, EditRunInput, FormatTextInput, HandleInput, MergeCellsInput,
+    MoveParagraphInput, MoveSlideInput, OpenInput, RenderSlideInput, ReorderShapeInput,
+    SavePdfInput, SaveInput, SetAutofitInput, SetBackgroundInput, SetCellStyleInput,
+    SetCellTextInput, SetChartDataInput, SetClickActionInput, SetDocPropertiesInput,
+    SetFooterInput, SetHyperlinkInput, SetImageCropInput, SetImageRotationInput,
+    SetLayoutInput, SetNotesInput, SetParagraphFormatInput, SetRunFormatInput,
+    SetShapeFillInput, SetShapeGeometryInput, SetShapeLineInput, SetSlideSizeInput,
+    SetTableCellInput, SetTableSizingInput, SetTitleInput, SlideIndexInput,
+    SplitCellInput, TableAddColumnInput, TableAddRowInput, TableRemoveColumnInput,
+    TableRemoveRowInput, TextBoxInput,
 };
 use crate::types::responses::{error, success};
 
@@ -310,6 +321,11 @@ impl SlidesServer {
                 size_pt: input.size_pt,
                 color: input.color.map(|c| c.trim_start_matches('#').to_string()),
                 font: input.font,
+                strikethrough: None,
+                baseline: None,
+                lang: None,
+                underline_style: None,
+                theme_color: None,
             },
         ) {
             Ok(()) => success(
@@ -554,4 +570,1099 @@ impl SlidesServer {
             Err(e) => engine_error(e),
         }
     }
+
+    // ─── Paragraph tools ────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Add a paragraph to a shape's text frame. If `position` is omitted, \
+        appends to the end; otherwise inserts at the given 0-based index. \
+        Requires an opened deck (not a newly-created one)."
+    )]
+    async fn add_paragraph(&self, Parameters(input): Parameters<AddParagraphInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        let result = if let Some(pos) = input.position {
+            slide.insert_paragraph(input.shape_idx, pos, &input.text)
+        } else {
+            slide.add_paragraph(input.shape_idx, &input.text)
+        };
+        match result {
+            Ok(()) => success(
+                "Added paragraph",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Delete a paragraph by index from a shape's text frame. \
+        Requires an opened deck."
+    )]
+    async fn delete_paragraph(&self, Parameters(input): Parameters<DeleteParagraphInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.delete_paragraph(input.shape_idx, input.para_idx) {
+            Ok(()) => success(
+                "Deleted paragraph",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx, "para_idx": input.para_idx }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Move (reorder) a paragraph within a shape's text frame. \
+        Moves the paragraph at index `from` to index `to`. Requires an opened deck."
+    )]
+    async fn move_paragraph(&self, Parameters(input): Parameters<MoveParagraphInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.move_paragraph(input.shape_idx, input.from, input.to) {
+            Ok(()) => success(
+                "Moved paragraph",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx, "from": input.from, "to": input.to }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Set paragraph formatting properties: alignment, level, spacing, \
+        line-spacing, bullet. All properties are optional; only specified ones are changed. \
+        Requires an opened deck."
+    )]
+    async fn set_paragraph_format(&self, Parameters(input): Parameters<SetParagraphFormatInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+
+        if let Some(algn) = &input.alignment {
+            if let Err(e) = slide.set_paragraph_alignment(input.shape_idx, input.para_idx, algn) {
+                return engine_error(e);
+            }
+        }
+        if let Some(level) = input.level {
+            if let Err(e) = slide.set_paragraph_level(input.shape_idx, input.para_idx, level) {
+                return engine_error(e);
+            }
+        }
+        if let Some(pts) = input.space_before_pt {
+            // Convert points to hundredths of a point for the engine.
+            let val = SpacingValue::Points((pts * 100.0) as u32);
+            if let Err(e) = slide.set_paragraph_space_before(input.shape_idx, input.para_idx, val) {
+                return engine_error(e);
+            }
+        }
+        if let Some(pts) = input.space_after_pt {
+            let val = SpacingValue::Points((pts * 100.0) as u32);
+            if let Err(e) = slide.set_paragraph_space_after(input.shape_idx, input.para_idx, val) {
+                return engine_error(e);
+            }
+        }
+        if let Some(pct) = input.line_spacing_pct {
+            // Convert percentage to thousandths of a percent (e.g. 150.0 → 150000).
+            let val = SpacingValue::Percent((pct * 1000.0) as u32);
+            if let Err(e) = slide.set_paragraph_line_spacing(input.shape_idx, input.para_idx, val) {
+                return engine_error(e);
+            }
+        }
+        if let Some(bullet_str) = &input.bullet {
+            let bullet = parse_bullet_kind(bullet_str);
+            if let Err(e) = slide.set_paragraph_bullet(input.shape_idx, input.para_idx, &bullet) {
+                return engine_error(e);
+            }
+        }
+
+        success(
+            "Set paragraph format",
+            json!({ "slide": input.slide, "shape_idx": input.shape_idx, "para_idx": input.para_idx }),
+        )
+    }
+
+    // ─── Autofit ─────────────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Set the text-frame autofit behavior on a shape. Modes: \
+        \"none\" (text can overflow), \"shrink\" (shrink text on overflow), \
+        \"resize\" (resize shape to fit text). Optional font_scale_pct for shrink mode. \
+        Requires an opened deck."
+    )]
+    async fn set_autofit(&self, Parameters(input): Parameters<SetAutofitInput>) -> String {
+        let autofit = match input.autofit.as_str() {
+            "none" => AutoFit::None,
+            "shrink" => {
+                let font_scale = input.font_scale_pct.map(|pct| (pct * 1000.0) as u32);
+                AutoFit::ShrinkToFit { font_scale }
+            }
+            "resize" => AutoFit::ResizeShape,
+            other => {
+                return error(
+                    category::INVALID_INPUT,
+                    format!("Unknown autofit mode '{other}'"),
+                    "Use \"none\", \"shrink\", or \"resize\".",
+                );
+            }
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.set_autofit(input.shape_idx, &autofit) {
+            Ok(()) => success(
+                "Set autofit",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx, "autofit": input.autofit }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    // ─── Shape geometry / lifecycle ────────────────────────────────────────
+
+    #[tool(
+        description = "Set the position (left/top), size (width/height) in inches, and optional \
+        rotation (degrees, clockwise) of a shape. Requires an opened deck."
+    )]
+    async fn set_shape_geometry(&self, Parameters(input): Parameters<SetShapeGeometryInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        // Convert inches to EMU; rotation degrees to 60,000ths of a degree.
+        let x = Emu::inches(input.left_in).0;
+        let y = Emu::inches(input.top_in).0;
+        let cx = Emu::inches(input.width_in).0;
+        let cy = Emu::inches(input.height_in).0;
+        let rot = input.rotation_deg.map(|deg| (deg * 60_000.0) as i64);
+        match slide.set_shape_geometry(input.shape_idx, x, y, cx, cy, rot) {
+            Ok(()) => success(
+                "Set shape geometry",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Delete a shape by index from a slide. Requires an opened deck."
+    )]
+    async fn delete_shape(&self, Parameters(input): Parameters<DeleteShapeInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.delete_shape(input.shape_idx) {
+            Ok(()) => success(
+                "Deleted shape",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Move a shape to a different z-order position within the slide. \
+        Moves the shape at index `from` to index `to`. Requires an opened deck."
+    )]
+    async fn reorder_shape(&self, Parameters(input): Parameters<ReorderShapeInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.reorder_shape(input.from, input.to) {
+            Ok(()) => success(
+                "Reordered shape",
+                json!({ "slide": input.slide, "from": input.from, "to": input.to }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    // ─── Shape fill / line ──────────────────────────────────────────────────
+
+    #[tool(
+        description = "Set the fill of a shape. fill_type: \"solid\" (requires color), \
+        \"gradient\" (requires gradient_stops + optional gradient_angle_deg), \
+        \"pattern\" (requires pattern_preset + pattern_fg + pattern_bg), or \"none\". \
+        Color accepts RGB hex (\"#FF0000\") or theme name (\"accent1\"). Requires an opened deck."
+    )]
+    async fn set_shape_fill(&self, Parameters(input): Parameters<SetShapeFillInput>) -> String {
+        let fill = match input.fill_type.as_str() {
+            "solid" => {
+                let Some(c) = &input.color else {
+                    return error(category::INVALID_INPUT, "solid fill requires 'color'", "Provide a color hex or theme name.");
+                };
+                let cs = parse_color_spec(c);
+                zavora_slide_oxml::FillSpec::Solid { color: cs }
+            }
+            "gradient" => {
+                let Some(stops) = &input.gradient_stops else {
+                    return error(category::INVALID_INPUT, "gradient fill requires 'gradient_stops'", "Provide an array of {position, color} stops.");
+                };
+                if stops.len() < 2 {
+                    return error(category::INVALID_INPUT, "gradient needs at least 2 stops", "Provide 2+ gradient stops.");
+                }
+                let parsed: Vec<(f64, zavora_slide_oxml::ColorSpec)> = stops
+                    .iter()
+                    .map(|s| (s.position, parse_color_spec(&s.color)))
+                    .collect();
+                zavora_slide_oxml::FillSpec::Gradient {
+                    stops: parsed,
+                    angle_deg: input.gradient_angle_deg.unwrap_or(0.0),
+                }
+            }
+            "pattern" => {
+                let Some(preset) = &input.pattern_preset else {
+                    return error(category::INVALID_INPUT, "pattern fill requires 'pattern_preset'", "Provide e.g. \"ltDnDiag\".");
+                };
+                let Some(fg) = &input.pattern_fg else {
+                    return error(category::INVALID_INPUT, "pattern fill requires 'pattern_fg'", "Provide foreground color.");
+                };
+                let Some(bg) = &input.pattern_bg else {
+                    return error(category::INVALID_INPUT, "pattern fill requires 'pattern_bg'", "Provide background color.");
+                };
+                zavora_slide_oxml::FillSpec::Pattern {
+                    preset: preset.clone(),
+                    fg: parse_color_spec(fg),
+                    bg: parse_color_spec(bg),
+                }
+            }
+            "none" => zavora_slide_oxml::FillSpec::None,
+            other => {
+                return error(
+                    category::INVALID_INPUT,
+                    format!("Unknown fill_type '{other}'"),
+                    "Use \"solid\", \"gradient\", \"pattern\", or \"none\".",
+                );
+            }
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.set_shape_fill(input.shape_idx, &fill) {
+            Ok(()) => success(
+                "Set shape fill",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx, "fill_type": input.fill_type }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Set the outline (line) of a shape. line_type: \"styled\" (requires color + width_pt, \
+        optional dash) or \"none\". Color accepts RGB hex or theme name. Requires an opened deck."
+    )]
+    async fn set_shape_line(&self, Parameters(input): Parameters<SetShapeLineInput>) -> String {
+        let line = match input.line_type.as_str() {
+            "styled" => {
+                let Some(c) = &input.color else {
+                    return error(category::INVALID_INPUT, "styled line requires 'color'", "Provide a color hex or theme name.");
+                };
+                let Some(w) = input.width_pt else {
+                    return error(category::INVALID_INPUT, "styled line requires 'width_pt'", "Provide line width in points.");
+                };
+                let width_emu = (w * 12700.0) as i64; // 1 pt = 12700 EMU
+                zavora_slide_oxml::LineSpec::Styled {
+                    color: parse_color_spec(c),
+                    width_emu,
+                    dash: input.dash.clone(),
+                }
+            }
+            "none" => zavora_slide_oxml::LineSpec::None,
+            other => {
+                return error(
+                    category::INVALID_INPUT,
+                    format!("Unknown line_type '{other}'"),
+                    "Use \"styled\" or \"none\".",
+                );
+            }
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.set_shape_line(input.shape_idx, &line) {
+            Ok(()) => success(
+                "Set shape line",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx, "line_type": input.line_type }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    // ─── Visual QA tools (read_only) ────────────────────────────────────────
+
+    #[tool(
+        description = "Inspect a slide's layout: returns element bounding boxes, kinds, \
+        z-order, and findings (off-canvas, overlaps, margin violations, frame overflow, \
+        zero-area). Deterministic. Requires an opened deck."
+    )]
+    async fn inspect_slide(&self, Parameters(input): Parameters<SlideIndexInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let slide = match pres.slide(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        let scene = slide.scene();
+        let report = zavora_slide::qa::analyze_layout(&scene);
+        let elements: Vec<Value> = report.elements.iter().map(|el| {
+            json!({
+                "index": el.index,
+                "kind": format!("{:?}", el.kind),
+                "bbox_emu": { "x": el.bbox_emu.x, "y": el.bbox_emu.y, "w": el.bbox_emu.w, "h": el.bbox_emu.h },
+                "bbox_fraction": { "x": el.bbox_fraction.0, "y": el.bbox_fraction.1, "w": el.bbox_fraction.2, "h": el.bbox_fraction.3 },
+                "z_order": el.z_order,
+            })
+        }).collect();
+        let findings: Vec<Value> = report.findings.iter().map(|f| {
+            json!({
+                "severity": format!("{:?}", f.severity),
+                "kind": format!("{:?}", f.kind),
+                "refs": f.refs,
+                "message": f.message,
+            })
+        }).collect();
+        success("Layout report", json!({
+            "slide": input.slide,
+            "elements": elements,
+            "findings": findings,
+        }))
+    }
+
+    #[tool(
+        description = "Check WCAG contrast and minimum font size on a slide. Returns \
+        per-run contrast findings and undersized-text flags. Deterministic. Requires an opened deck."
+    )]
+    async fn check_contrast(&self, Parameters(input): Parameters<SlideIndexInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let slide = match pres.slide(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        let scene = slide.scene();
+        let config = zavora_slide::qa::ContrastConfig::default();
+        let findings = zavora_slide::qa::check_contrast(&scene, &config);
+        let items: Vec<Value> = findings.iter().map(|f| {
+            json!({
+                "severity": format!("{:?}", f.severity),
+                "kind": format!("{:?}", f.kind),
+                "refs": f.refs,
+                "message": f.message,
+            })
+        }).collect();
+        success("Contrast report", json!({
+            "slide": input.slide,
+            "findings": items,
+        }))
+    }
+
+    #[tool(
+        description = "Compare two render states of a slide and return a changed-region \
+        summary. Pass render_a and render_b as base64-encoded PNG data (from render_slide). \
+        Deterministic. Requires an opened deck."
+    )]
+    async fn diff_slide_render(&self, Parameters(input): Parameters<DiffSlideRenderInput>) -> String {
+        let a_bytes = match base64_decode(&input.render_a) {
+            Ok(b) => b,
+            Err(e) => return error(category::INVALID_INPUT, format!("render_a: {e}"), "Provide valid base64 PNG data."),
+        };
+        let b_bytes = match base64_decode(&input.render_b) {
+            Ok(b) => b,
+            Err(e) => return error(category::INVALID_INPUT, format!("render_b: {e}"), "Provide valid base64 PNG data."),
+        };
+        match zavora_slide::qa::compute_render_diff(&a_bytes, &b_bytes, 64) {
+            Ok(diff) => success("Render diff", json!({
+                "total_change_fraction": diff.total_change_fraction,
+                "changed_regions": diff.changed_regions.iter().map(|r| json!({
+                    "x": r.x, "y": r.y, "w": r.w, "h": r.h,
+                    "change_fraction": r.change_fraction,
+                })).collect::<Vec<_>>(),
+            })),
+            Err(e) => error(category::INVALID_INPUT, e.to_string(), "Ensure both renders are valid PNG images of the same dimensions."),
+        }
+    }
+
+    // ─── Table tools ────────────────────────────────────────────────────────
+
+    #[tool(description = "Add a row to a table. Appends at the bottom. Requires an opened deck.")]
+    async fn table_add_row(&self, Parameters(input): Parameters<TableAddRowInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        let h = Emu::inches(input.height_in).0;
+        match slide.table_add_row(input.shape_idx, h) {
+            Ok(()) => success("Added row", json!({"slide": input.slide, "shape_idx": input.shape_idx})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Remove a row from a table by index. Requires an opened deck.")]
+    async fn table_remove_row(&self, Parameters(input): Parameters<TableRemoveRowInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        match slide.table_remove_row(input.shape_idx, input.row_idx) {
+            Ok(()) => success("Removed row", json!({"slide": input.slide, "shape_idx": input.shape_idx, "row_idx": input.row_idx})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Add a column to a table. Appends at the right. Requires an opened deck.")]
+    async fn table_add_column(&self, Parameters(input): Parameters<TableAddColumnInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        let w = Emu::inches(input.width_in).0;
+        match slide.table_add_column(input.shape_idx, w) {
+            Ok(()) => success("Added column", json!({"slide": input.slide, "shape_idx": input.shape_idx})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Remove a column from a table by index. Requires an opened deck.")]
+    async fn table_remove_column(&self, Parameters(input): Parameters<TableRemoveColumnInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        match slide.table_remove_column(input.shape_idx, input.col_idx) {
+            Ok(()) => success("Removed column", json!({"slide": input.slide, "shape_idx": input.shape_idx, "col_idx": input.col_idx})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Merge a rectangular region of table cells. Requires an opened deck.")]
+    async fn merge_cells(&self, Parameters(input): Parameters<MergeCellsInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        match slide.table_merge_cells(input.shape_idx, input.row1, input.col1, input.row2, input.col2) {
+            Ok(()) => success("Merged cells", json!({"slide": input.slide, "shape_idx": input.shape_idx})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Split a previously merged table cell back to individual cells. Requires an opened deck.")]
+    async fn split_cell(&self, Parameters(input): Parameters<SplitCellInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        match slide.table_split_cell(input.shape_idx, input.row, input.col) {
+            Ok(()) => success("Split cell", json!({"slide": input.slide, "shape_idx": input.shape_idx, "row": input.row, "col": input.col})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Set column width or row height in a table. dimension: \"column\" or \"row\". Size in inches.")]
+    async fn set_table_sizing(&self, Parameters(input): Parameters<SetTableSizingInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        let emu = Emu::inches(input.size_in).0;
+        let result = match input.dimension.as_str() {
+            "column" => slide.table_set_column_width(input.shape_idx, input.index, emu),
+            "row" => slide.table_set_row_height(input.shape_idx, input.index, emu),
+            other => return error(category::INVALID_INPUT, format!("Unknown dimension '{other}'"), "Use \"column\" or \"row\"."),
+        };
+        match result {
+            Ok(()) => success("Set table sizing", json!({"slide": input.slide, "shape_idx": input.shape_idx, "dimension": input.dimension, "index": input.index})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Set the text content of a table cell. Requires an opened deck.")]
+    async fn set_cell_text(&self, Parameters(input): Parameters<SetCellTextInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        match slide.table_set_cell_text(input.shape_idx, input.row, input.col, &input.text) {
+            Ok(()) => success("Set cell text", json!({"slide": input.slide, "shape_idx": input.shape_idx, "row": input.row, "col": input.col})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Set the style (fill color) of a table cell. Requires an opened deck.")]
+    async fn set_cell_style(&self, Parameters(input): Parameters<SetCellStyleInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        if let Some(fill) = &input.fill {
+            let hex = fill.trim_start_matches('#');
+            match slide.table_set_cell_fill(input.shape_idx, input.row, input.col, hex) {
+                Ok(()) => {},
+                Err(e) => return engine_error(e),
+            }
+        }
+        success("Set cell style", json!({"slide": input.slide, "shape_idx": input.shape_idx, "row": input.row, "col": input.col}))
+    }
+
+    // ─── Image tools ──────────────────────────────────────────────────────
+
+    #[tool(description = "Set crop on a picture shape. Values are percentage of image to crop from each side (0–100). Requires an opened deck.")]
+    async fn set_image_crop(&self, Parameters(input): Parameters<SetImageCropInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        // Convert percentage to thousandths (OOXML format: 1000 = 1%).
+        let l = (input.left_pct * 1000.0) as u32;
+        let t = (input.top_pct * 1000.0) as u32;
+        let r = (input.right_pct * 1000.0) as u32;
+        let b = (input.bottom_pct * 1000.0) as u32;
+        match slide.set_image_crop(input.shape_idx, l, t, r, b) {
+            Ok(()) => success("Set image crop", json!({"slide": input.slide, "shape_idx": input.shape_idx})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Set rotation on a picture shape, in degrees clockwise. Requires an opened deck.")]
+    async fn set_image_rotation(&self, Parameters(input): Parameters<SetImageRotationInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        match slide.set_image_rotation(input.shape_idx, input.rotation_deg) {
+            Ok(()) => success("Set image rotation", json!({"slide": input.slide, "shape_idx": input.shape_idx, "rotation_deg": input.rotation_deg})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    // ─── Design tools ───────────────────────────────────────────────────────
+
+    #[tool(description = "List available color palettes with their swatches and intended tone. Read-only.")]
+    async fn list_palettes(&self) -> String {
+        let palettes: Vec<Value> = zavora_slide::palettes().iter().map(|p| json!({
+            "id": p.id, "name": p.name, "tone": p.tone,
+            "primary": p.primary, "secondary": p.secondary,
+            "accent1": p.accent1, "accent2": p.accent2, "accent3": p.accent3,
+            "accent4": p.accent4, "accent5": p.accent5, "accent6": p.accent6,
+        })).collect();
+        success("Palettes", json!({"palettes": palettes}))
+    }
+
+    #[tool(description = "List available font pairings (heading + body font combinations). Read-only.")]
+    async fn list_font_pairings(&self) -> String {
+        let pairings: Vec<Value> = zavora_slide::font_pairings().iter().map(|fp| json!({
+            "id": fp.id, "name": fp.name, "heading": fp.heading, "body": fp.body,
+        })).collect();
+        success("Font pairings", json!({"font_pairings": pairings}))
+    }
+
+    #[tool(description = "Apply a layout pattern to a slide (two_column, icon_rows, stat, quote, divider, image_caption). Populates shapes from parameters. Requires an opened deck.")]
+    async fn apply_layout_pattern(&self, Parameters(input): Parameters<ApplyLayoutPatternInput>) -> String {
+        let pattern = match input.pattern.as_str() {
+            "two_column" => zavora_slide::LayoutPattern::TwoColumn,
+            "icon_rows" => zavora_slide::LayoutPattern::IconRows,
+            "stat" => zavora_slide::LayoutPattern::StatCallout,
+            "quote" => zavora_slide::LayoutPattern::Quote,
+            "divider" => zavora_slide::LayoutPattern::SectionDivider,
+            "image_caption" => zavora_slide::LayoutPattern::ImageCaption,
+            other => return error(category::INVALID_INPUT, format!("Unknown pattern '{other}'"), "Use two_column, icon_rows, stat, quote, divider, or image_caption."),
+        };
+        let params = zavora_slide::PatternParams {
+            title: input.title,
+            items: input.items.unwrap_or_default(),
+            palette_id: input.palette_id,
+            font_pairing_id: input.font_pairing_id,
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        match zavora_slide::apply_layout_pattern(&mut slide, pattern, &params) {
+            Ok(()) => success("Applied layout pattern", json!({"slide": input.slide, "pattern": input.pattern})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Lint a slide for design anti-patterns (text-only, centered body, too many fonts, undersized title). Read-only.")]
+    async fn lint_design(&self, Parameters(input): Parameters<SlideIndexInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let slide = match pres.slide(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        let scene = slide.scene();
+        let findings = zavora_slide::design_lint(&scene);
+        let items: Vec<Value> = findings.iter().map(|f| json!({
+            "severity": format!("{:?}", f.severity),
+            "kind": format!("{:?}", f.kind),
+            "refs": f.refs,
+            "message": f.message,
+        })).collect();
+        success("Design lint", json!({"slide": input.slide, "findings": items}))
+    }
+
+    // ─── Extraction tools ───────────────────────────────────────────────────
+
+    #[tool(description = "Extract a structured JSON outline of the entire deck (titles, body paragraphs with level, tables as grids, shape text, alt-text, notes). Read-only.")]
+    async fn extract_outline(&self, Parameters(input): Parameters<HandleInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let outline = zavora_slide::to_outline(pres);
+        match serde_json::to_value(&outline) {
+            Ok(v) => success("Deck outline", v),
+            Err(e) => error(category::INVALID_INPUT, e.to_string(), "Internal serialization error."),
+        }
+    }
+
+    // ─── Hyperlink / metadata / notes / footer ──────────────────────────────
+
+    #[tool(description = "Set a hyperlink on a text run. Requires an opened deck.")]
+    async fn set_hyperlink(&self, Parameters(input): Parameters<SetHyperlinkInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        match slide.set_run_hyperlink(input.shape_idx, input.para_idx, input.run_idx, &input.url) {
+            Ok(()) => success("Set hyperlink", json!({"slide": input.slide, "url": input.url})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Set a click action on a shape (external URL or jump to slide). Requires an opened deck.")]
+    async fn set_click_action(&self, Parameters(input): Parameters<SetClickActionInput>) -> String {
+        let action = match input.action_type.as_str() {
+            "url" => zavora_slide_oxml::ClickAction::ExternalUrl { r_id: format!("rIdClick{}", input.shape_idx) },
+            "jump" => {
+                let slide_num: usize = match input.target.parse() {
+                    Ok(n) => n,
+                    Err(_) => return error(category::INVALID_INPUT, "target must be a slide number for 'jump'", "Provide e.g. \"2\" for slide 2."),
+                };
+                zavora_slide_oxml::ClickAction::JumpToSlide {
+                    r_id: format!("rIdSlide{slide_num}"),
+                    action: "ppaction://hlinksldjump".to_string(),
+                }
+            }
+            other => return error(category::INVALID_INPUT, format!("Unknown action_type '{other}'"), "Use \"url\" or \"jump\"."),
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        match slide.set_shape_click_action(input.shape_idx, &action) {
+            Ok(()) => success("Set click action", json!({"slide": input.slide, "shape_idx": input.shape_idx})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Get document core properties (title, author, subject, etc.). Read-only.")]
+    async fn get_doc_properties(&self, Parameters(input): Parameters<HandleInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let props = pres.core_properties();
+        success("Document properties", json!({
+            "title": props.title, "author": props.author, "subject": props.subject,
+            "keywords": props.keywords, "comments": props.comments, "category": props.category,
+            "created": props.created, "modified": props.modified, "last_modified_by": props.last_modified_by,
+        }))
+    }
+
+    #[tool(description = "Set document core properties (title, author, subject, keywords, comments, category). Only specified fields are updated.")]
+    async fn set_doc_properties(&self, Parameters(input): Parameters<SetDocPropertiesInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let props = zavora_slide::CoreProperties {
+            title: input.title,
+            author: input.author,
+            subject: input.subject,
+            keywords: input.keywords,
+            comments: input.comments,
+            category: input.category,
+            ..Default::default()
+        };
+        pres.set_core_properties(&props);
+        success("Set document properties", json!({}))
+    }
+
+    #[tool(description = "Set or hide footer on a slide. Requires an opened deck.")]
+    async fn set_footer(&self, Parameters(input): Parameters<SetFooterInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        if let Some(text) = &input.text {
+            if let Err(e) = slide.set_footer_text(text) { return engine_error(e); }
+        }
+        if let Some(vis) = input.visible {
+            if let Err(e) = slide.set_footer_visible(vis) { return engine_error(e); }
+        }
+        success("Set footer", json!({"slide": input.slide}))
+    }
+
+    // ─── Shape vocabulary ───────────────────────────────────────────────────
+
+    #[tool(description = "Add an autoshape by OOXML preset name (e.g. star5, heart, cloud, hexagon). Position/size in inches. Requires an opened deck.")]
+    async fn add_autoshape(&self, Parameters(input): Parameters<AddAutoshapeInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        let x = Emu::inches(input.x_in).0;
+        let y = Emu::inches(input.y_in).0;
+        let cx = Emu::inches(input.w_in).0;
+        let cy = Emu::inches(input.h_in).0;
+        match slide.add_autoshape_preset(&input.preset, x, y, cx, cy) {
+            Ok(()) => success("Added autoshape", json!({"slide": input.slide, "preset": input.preset})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Add a connector shape (straight, elbow, curved). Position/size in inches. Requires an opened deck.")]
+    async fn add_connector(&self, Parameters(input): Parameters<AddConnectorInput>) -> String {
+        let conn_type = match input.connector_type.as_str() {
+            "straight" => zavora_slide_oxml::ConnectorType::Straight,
+            "elbow" => zavora_slide_oxml::ConnectorType::Elbow,
+            "curved" => zavora_slide_oxml::ConnectorType::Curved,
+            other => return error(category::INVALID_INPUT, format!("Unknown connector_type '{other}'"), "Use straight, elbow, or curved."),
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        let x = Emu::inches(input.x_in).0;
+        let y = Emu::inches(input.y_in).0;
+        let cx = Emu::inches(input.w_in).0;
+        let cy = Emu::inches(input.h_in).0;
+        match slide.add_connector(conn_type, x, y, cx, cy) {
+            Ok(()) => success("Added connector", json!({"slide": input.slide, "type": input.connector_type})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Add a freeform shape from a series of points. Position/size in inches. Requires an opened deck.")]
+    async fn add_freeform(&self, Parameters(input): Parameters<AddFreeformInput>) -> String {
+        if input.points.len() < 2 {
+            return error(category::INVALID_INPUT, "freeform needs at least 2 points", "Provide an array of {x, y} points.");
+        }
+        let mut path = zavora_slide_oxml::FreeformPath::new(input.points[0].x, input.points[0].y);
+        for pt in &input.points[1..] {
+            path.line_to(pt.x, pt.y);
+        }
+        path.close();
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        let x = Emu::inches(input.x_in).0;
+        let y = Emu::inches(input.y_in).0;
+        let cx = Emu::inches(input.w_in).0;
+        let cy = Emu::inches(input.h_in).0;
+        match slide.add_freeform(&path, x, y, cx, cy) {
+            Ok(()) => success("Added freeform", json!({"slide": input.slide})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    // ─── Chart tools ────────────────────────────────────────────────────────
+
+    #[tool(description = "Add a chart to a slide. Types: bar, column, line, pie, area, scatter. Position/size in inches.")]
+    async fn add_chart(&self, Parameters(input): Parameters<AddChartInput>) -> String {
+        let kind = match input.chart_type.as_str() {
+            "bar" => zavora_slide::ChartKind::ClusteredBar,
+            "column" => zavora_slide::ChartKind::ClusteredColumn,
+            "line" => zavora_slide::ChartKind::Line,
+            "pie" => zavora_slide::ChartKind::Pie,
+            "area" => zavora_slide::ChartKind::Area,
+            "scatter" => zavora_slide::ChartKind::Scatter,
+            other => return error(category::INVALID_INPUT, format!("Unknown chart_type '{other}'"), "Use bar, column, line, pie, area, or scatter."),
+        };
+        let series: Vec<(String, Vec<f64>)> = input.series.iter().map(|s| (s.name.clone(), s.values.clone())).collect();
+        let spec = zavora_slide::ChartSpec {
+            kind,
+            categories: input.categories,
+            series,
+            title: input.title,
+            legend_position: Some("b".to_string()),
+            data_labels: false,
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        // chart_index: count existing charts to assign unique index
+        let chart_idx = pres.slide_count();
+        let mut slide = match pres.slide_mut(input.slide) { Ok(s) => s, Err(e) => return engine_error(e) };
+        match slide.add_chart(
+            &spec,
+            Emu::inches(input.x_in), Emu::inches(input.y_in),
+            Emu::inches(input.w_in), Emu::inches(input.h_in),
+            chart_idx,
+        ) {
+            Ok(()) => success("Added chart", json!({"slide": input.slide, "chart_type": input.chart_type})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(description = "Update the data (categories + series) of an existing chart. Requires an opened deck.")]
+    async fn set_chart_data(&self, Parameters(input): Parameters<SetChartDataInput>) -> String {
+        let series: Vec<(String, Vec<f64>)> = input.series.iter().map(|s| (s.name.clone(), s.values.clone())).collect();
+        let update = zavora_slide::ChartDataUpdate {
+            categories: input.categories,
+            series,
+        };
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else { return unknown_handle(&input.handle); };
+        match pres.update_chart_data(input.slide, input.shape_idx, &update) {
+            Ok(()) => success("Updated chart data", json!({"slide": input.slide, "shape_idx": input.shape_idx})),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    // ─── Run tools ──────────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Add a run (text span) to a paragraph in a shape's text frame. \
+        Appends to the end of the paragraph. Optional formatting: bold, italic, size_pt, font, color. \
+        Requires an opened deck."
+    )]
+    async fn add_run(&self, Parameters(input): Parameters<AddRunInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        if let Err(e) = slide.add_run(input.shape_idx, input.para_idx, &input.text) {
+            return engine_error(e);
+        }
+        // Apply optional formatting to the newly-added run.
+        let has_fmt = input.bold.is_some()
+            || input.italic.is_some()
+            || input.size_pt.is_some()
+            || input.font.is_some()
+            || input.color.is_some();
+        if has_fmt {
+            let run_count = slide
+                .run_count(input.shape_idx, input.para_idx)
+                .unwrap_or(0);
+            if run_count > 0 {
+                let fmt = zavora_slide::RunFormat {
+                    bold: input.bold,
+                    italic: input.italic,
+                    size_pt: input.size_pt,
+                    font: input.font.clone(),
+                    color: input.color.as_ref().map(|c| c.trim_start_matches('#').to_string()),
+                    underline: None,
+                    strikethrough: None,
+                    baseline: None,
+                    lang: None,
+                    underline_style: None,
+                    theme_color: None,
+                };
+                let _ = slide.format_run(input.shape_idx, input.para_idx, run_count - 1, &fmt);
+            }
+        }
+        success(
+            "Added run",
+            json!({ "slide": input.slide, "shape_idx": input.shape_idx, "para_idx": input.para_idx }),
+        )
+    }
+
+    #[tool(
+        description = "Edit (replace) the text content of an existing run in a paragraph. \
+        The run's formatting is preserved. Requires an opened deck."
+    )]
+    async fn edit_run(&self, Parameters(input): Parameters<EditRunInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.edit_run_text(input.shape_idx, input.para_idx, input.run_idx, &input.text) {
+            Ok(()) => success(
+                "Edited run",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx, "para_idx": input.para_idx, "run_idx": input.run_idx }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Delete a run (or line break) by index from a paragraph. \
+        Requires an opened deck."
+    )]
+    async fn delete_run(&self, Parameters(input): Parameters<DeleteRunInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.delete_run(input.shape_idx, input.para_idx, input.run_idx) {
+            Ok(()) => success(
+                "Deleted run",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx, "para_idx": input.para_idx, "run_idx": input.run_idx }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    #[tool(
+        description = "Insert a line break (<a:br/>) into a paragraph. If `position` is \
+        omitted, appends to the end; otherwise inserts at the given run index. \
+        Requires an opened deck."
+    )]
+    async fn add_line_break(&self, Parameters(input): Parameters<AddLineBreakInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        match slide.add_line_break(input.shape_idx, input.para_idx, input.position) {
+            Ok(()) => success(
+                "Added line break",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx, "para_idx": input.para_idx }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+
+    // ─── Run formatting ─────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Set run formatting (character properties) on an existing run. Supports \
+        bold, italic, underline_style, size_pt, font, color (RGB hex), theme_color, \
+        strikethrough, baseline (superscript/subscript), and lang. All fields are optional; \
+        only specified ones are changed. Requires an opened deck."
+    )]
+    async fn set_run_format(&self, Parameters(input): Parameters<SetRunFormatInput>) -> String {
+        let mut store = self.store.write().await;
+        let Some(pres) = store.get_mut(&input.handle) else {
+            return unknown_handle(&input.handle);
+        };
+        let mut slide = match pres.slide_mut(input.slide) {
+            Ok(s) => s,
+            Err(e) => return engine_error(e),
+        };
+        // Parse theme_color string to SchemeColor enum.
+        let theme_color = match &input.theme_color {
+            Some(tc) => match SchemeColor::from_val(tc) {
+                Some(sc) => Some(sc),
+                None => {
+                    return error(
+                        category::INVALID_INPUT,
+                        format!("Unknown theme_color '{tc}'"),
+                        "Use dk1, dk2, lt1, lt2, accent1–accent6, hlink, or folHlink.",
+                    );
+                }
+            },
+            None => None,
+        };
+        // Convert baseline from percentage to thousandths of a percent (e.g. 30 → 30000).
+        let baseline = input.baseline.map(|pct| pct * 1000);
+        let fmt = zavora_slide::RunFormat {
+            bold: input.bold,
+            italic: input.italic,
+            underline: None,
+            underline_style: input.underline_style,
+            size_pt: input.size_pt,
+            font: input.font,
+            color: input.color.map(|c| c.trim_start_matches('#').to_string()),
+            theme_color,
+            strikethrough: input.strikethrough,
+            baseline,
+            lang: input.lang,
+        };
+        match slide.format_run(input.shape_idx, input.para_idx, input.run_idx, &fmt) {
+            Ok(()) => success(
+                "Set run format",
+                json!({ "slide": input.slide, "shape_idx": input.shape_idx, "para_idx": input.para_idx, "run_idx": input.run_idx }),
+            ),
+            Err(e) => engine_error(e),
+        }
+    }
+}
+
+/// Parse a bullet string into a `BulletKind`:
+/// - "none" → `BulletKind::None`
+/// - "autonum:<type>" → `BulletKind::AutoNum(type)`
+/// - anything else → `BulletKind::Char(string)` (e.g. "•", "–")
+fn parse_bullet_kind(s: &str) -> BulletKind {
+    match s {
+        "none" => BulletKind::None,
+        _ if s.starts_with("autonum:") => {
+            BulletKind::AutoNum(s.strip_prefix("autonum:").unwrap_or("arabicPeriod").to_string())
+        }
+        _ => BulletKind::Char(s.to_string()),
+    }
+}
+
+/// Parse a color string into a `ColorSpec`:
+/// - Starts with '#' or is 6 hex digits → `ColorSpec::Rgb` (stripped of '#')
+/// - Otherwise treated as a theme color name → `ColorSpec::Theme`
+fn parse_color_spec(s: &str) -> zavora_slide_oxml::ColorSpec {
+    let trimmed = s.trim_start_matches('#');
+    // If it looks like a hex color (6 hex chars), treat as RGB.
+    if trimmed.len() == 6 && trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
+        zavora_slide_oxml::ColorSpec::Rgb(trimmed.to_string())
+    } else {
+        // Treat as a theme color reference.
+        match SchemeColor::from_val(s) {
+            Some(sc) => zavora_slide_oxml::ColorSpec::Theme(sc),
+            None => {
+                // Fallback: treat as RGB anyway (engine will handle the error).
+                zavora_slide_oxml::ColorSpec::Rgb(trimmed.to_string())
+            }
+        }
+    }
+}
+
+/// Decode a base64 string (standard or URL-safe) into bytes.
+fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD
+        .decode(s)
+        .or_else(|_| base64::engine::general_purpose::URL_SAFE.decode(s))
+        .map_err(|e| format!("invalid base64: {e}"))
 }

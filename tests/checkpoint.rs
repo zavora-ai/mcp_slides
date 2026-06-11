@@ -115,12 +115,12 @@ fn full_authoring_flow() {
     assert_eq!(shapes[0]["kind"], "title");
     assert_eq!(shapes[0]["text"], "Roadmap");
 
-    // to_markdown contains the title and the nested bullet + notes.
+    // to_markdown contains the title heading, the nested bullet, and notes.
     let md = s.call(10, "to_markdown", json!({"handle": h}));
     let text = md["data"]["markdown"].as_str().unwrap();
-    assert!(text.contains("- Roadmap"));
-    assert!(text.contains("  - EMEA"));
-    assert!(text.contains("notes: Lead with Q1"));
+    assert!(text.contains("## Slide 1: Roadmap"), "markdown: {text}");
+    assert!(text.contains("  - EMEA"), "markdown: {text}");
+    assert!(text.contains("**Note:** Lead with Q1"), "markdown: {text}");
 
     // Save and reopen as a valid package.
     let out = std::env::temp_dir().join("slides_mcp_authoring.pptx");
