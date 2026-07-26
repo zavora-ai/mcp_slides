@@ -158,8 +158,8 @@ will be exposed here once a release carries it.
 ## Build from source
 
 ```bash
-git clone https://github.com/zavora-ai/mcp-slides
-cd mcp-slides
+git clone https://github.com/zavora-ai/mcp_slides
+cd mcp_slides
 cargo build --release
 cargo test
 ```
