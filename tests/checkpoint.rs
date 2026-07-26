@@ -4,7 +4,7 @@
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 struct Server {
     child: Child,
@@ -75,17 +75,27 @@ fn create_save_reopen_and_unknown_handle() {
     let handle = created["data"]["handle"].as_str().unwrap().to_string();
 
     let out = std::env::temp_dir().join("slides_mcp_checkpoint.pptx");
-    let saved = s.call(3, "save_presentation",
-        json!({"handle": handle, "output_path": out.to_str().unwrap()}));
+    let saved = s.call(
+        3,
+        "save_presentation",
+        json!({"handle": handle, "output_path": out.to_str().unwrap()}),
+    );
     assert_eq!(saved["status"], "success");
 
     // The saved file reopens via the engine's OPC layer as a valid package.
     let pkg = zavora_slide_opc::OpcPackage::open(&out).unwrap();
-    assert_eq!(pkg.main_presentation_part().as_deref(), Some("/ppt/presentation.xml"));
+    assert_eq!(
+        pkg.main_presentation_part().as_deref(),
+        Some("/ppt/presentation.xml")
+    );
     std::fs::remove_file(&out).ok();
 
     // Unknown handle → structured not_found.
-    let miss = s.call(4, "describe_presentation", json!({"handle": "does-not-exist"}));
+    let miss = s.call(
+        4,
+        "describe_presentation",
+        json!({"handle": "does-not-exist"}),
+    );
     assert_eq!(miss["status"], "error");
     assert_eq!(miss["category"], "not_found");
 }
@@ -98,14 +108,38 @@ fn full_authoring_flow() {
         .unwrap()
         .to_string();
 
-    s.call(3, "apply_theme", json!({"handle": h, "accent": "#E91E63", "heading_font": "Georgia"}));
-    let added = s.call(4, "add_slide", json!({"handle": h, "layout": "title_content"}));
+    s.call(
+        3,
+        "apply_theme",
+        json!({"handle": h, "accent": "#E91E63", "heading_font": "Georgia"}),
+    );
+    let added = s.call(
+        4,
+        "add_slide",
+        json!({"handle": h, "layout": "title_content"}),
+    );
     assert_eq!(added["data"]["slide_index"], 0);
-    s.call(5, "set_title", json!({"handle": h, "slide": 0, "text": "Roadmap"}));
-    s.call(6, "add_bullets", json!({"handle": h, "slide": 0,
-        "items": [{"text": "Q1"}, {"text": "EMEA", "level": 1}]}));
-    s.call(7, "set_notes", json!({"handle": h, "slide": 0, "text": "Lead with Q1"}));
-    s.call(8, "set_background", json!({"handle": h, "slide": 0, "color": "#F5F5F5"}));
+    s.call(
+        5,
+        "set_title",
+        json!({"handle": h, "slide": 0, "text": "Roadmap"}),
+    );
+    s.call(
+        6,
+        "add_bullets",
+        json!({"handle": h, "slide": 0,
+        "items": [{"text": "Q1"}, {"text": "EMEA", "level": 1}]}),
+    );
+    s.call(
+        7,
+        "set_notes",
+        json!({"handle": h, "slide": 0, "text": "Lead with Q1"}),
+    );
+    s.call(
+        8,
+        "set_background",
+        json!({"handle": h, "slide": 0, "color": "#F5F5F5"}),
+    );
 
     // read_slide reflects authored content.
     let read = s.call(9, "read_slide", json!({"handle": h, "slide": 0}));
@@ -124,8 +158,11 @@ fn full_authoring_flow() {
 
     // Save and reopen as a valid package.
     let out = std::env::temp_dir().join("slides_mcp_authoring.pptx");
-    let saved = s.call(11, "save_presentation",
-        json!({"handle": h, "output_path": out.to_str().unwrap()}));
+    let saved = s.call(
+        11,
+        "save_presentation",
+        json!({"handle": h, "output_path": out.to_str().unwrap()}),
+    );
     assert_eq!(saved["status"], "success");
     let pkg = zavora_slide_opc::OpcPackage::open(&out).unwrap();
     assert!(pkg.get_part("/ppt/slides/slide1.xml").is_some());
@@ -142,34 +179,60 @@ fn visuals_flow() {
     s.call(3, "add_slide", json!({"handle": h, "layout": "blank"}));
 
     // Shape with fill + outline.
-    let shp = s.call(4, "add_shape", json!({"handle": h, "slide": 0, "preset": "round_rect",
-        "x_in": 1.0, "y_in": 1.0, "w_in": 3.0, "h_in": 1.5, "fill": "#4472C4"}));
+    let shp = s.call(
+        4,
+        "add_shape",
+        json!({"handle": h, "slide": 0, "preset": "round_rect",
+        "x_in": 1.0, "y_in": 1.0, "w_in": 3.0, "h_in": 1.5, "fill": "#4472C4"}),
+    );
     assert_eq!(shp["status"], "success");
     // Bad preset → invalid_input.
-    let bad = s.call(5, "add_shape", json!({"handle": h, "slide": 0, "preset": "nope",
-        "x_in": 0.0, "y_in": 0.0, "w_in": 1.0, "h_in": 1.0}));
+    let bad = s.call(
+        5,
+        "add_shape",
+        json!({"handle": h, "slide": 0, "preset": "nope",
+        "x_in": 0.0, "y_in": 0.0, "w_in": 1.0, "h_in": 1.0}),
+    );
     assert_eq!(bad["category"], "invalid_input");
 
     // Table + cells.
-    let tbl = s.call(6, "add_table", json!({"handle": h, "slide": 0, "rows": 2, "cols": 2,
-        "x_in": 1.0, "y_in": 3.0, "w_in": 4.0, "h_in": 2.0}));
+    let tbl = s.call(
+        6,
+        "add_table",
+        json!({"handle": h, "slide": 0, "rows": 2, "cols": 2,
+        "x_in": 1.0, "y_in": 3.0, "w_in": 4.0, "h_in": 2.0}),
+    );
     let t = tbl["data"]["table"].as_u64().unwrap();
-    let cell = s.call(7, "set_table_cell", json!({"handle": h, "slide": 0, "table": t,
-        "row": 0, "col": 0, "text": "H1"}));
+    let cell = s.call(
+        7,
+        "set_table_cell",
+        json!({"handle": h, "slide": 0, "table": t,
+        "row": 0, "col": 0, "text": "H1"}),
+    );
     assert_eq!(cell["status"], "success");
     // Out-of-bounds cell → invalid_input.
-    let oob = s.call(8, "set_table_cell", json!({"handle": h, "slide": 0, "table": t,
-        "row": 9, "col": 0, "text": "x"}));
+    let oob = s.call(
+        8,
+        "set_table_cell",
+        json!({"handle": h, "slide": 0, "table": t,
+        "row": 9, "col": 0, "text": "x"}),
+    );
     assert_eq!(oob["category"], "invalid_input");
 
     // Save and reopen; assert no empty txBody (the PowerPoint repair trigger).
     let out = std::env::temp_dir().join("slides_mcp_visuals.pptx");
-    let saved = s.call(9, "save_presentation",
-        json!({"handle": h, "output_path": out.to_str().unwrap()}));
+    let saved = s.call(
+        9,
+        "save_presentation",
+        json!({"handle": h, "output_path": out.to_str().unwrap()}),
+    );
     assert_eq!(saved["status"], "success");
     let pkg = zavora_slide_opc::OpcPackage::open(&out).unwrap();
-    let slide = String::from_utf8(pkg.get_part("/ppt/slides/slide1.xml").unwrap().to_vec()).unwrap();
-    assert!(!slide.contains("<p:txBody><a:bodyPr/><a:lstStyle/></p:txBody>"),
-        "empty txBody would trigger PowerPoint repair");
+    let slide =
+        String::from_utf8(pkg.get_part("/ppt/slides/slide1.xml").unwrap().to_vec()).unwrap();
+    assert!(
+        !slide.contains("<p:txBody><a:bodyPr/><a:lstStyle/></p:txBody>"),
+        "empty txBody would trigger PowerPoint repair"
+    );
     std::fs::remove_file(&out).ok();
 }

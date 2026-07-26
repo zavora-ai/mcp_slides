@@ -28,7 +28,11 @@ pub struct PresentationStore {
 
 impl PresentationStore {
     pub fn new() -> Self {
-        Self { map: HashMap::new(), capacity: CAPACITY, ttl: TTL }
+        Self {
+            map: HashMap::new(),
+            capacity: CAPACITY,
+            ttl: TTL,
+        }
     }
 
     /// Insert a presentation, returning its new UUID handle. Sweeps stale
@@ -39,7 +43,13 @@ impl PresentationStore {
             self.evict_lru();
         }
         let handle = Uuid::new_v4().to_string();
-        self.map.insert(handle.clone(), Entry { pres, last_used: Instant::now() });
+        self.map.insert(
+            handle.clone(),
+            Entry {
+                pres,
+                last_used: Instant::now(),
+            },
+        );
         handle
     }
 
@@ -118,7 +128,11 @@ mod tests {
 
     #[test]
     fn lru_eviction_at_capacity() {
-        let mut s = PresentationStore { map: HashMap::new(), capacity: 2, ttl: TTL };
+        let mut s = PresentationStore {
+            map: HashMap::new(),
+            capacity: 2,
+            ttl: TTL,
+        };
         let h1 = s.insert(Presentation::new());
         std::thread::sleep(Duration::from_millis(2));
         let h2 = s.insert(Presentation::new());

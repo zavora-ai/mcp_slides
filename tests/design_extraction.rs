@@ -1,14 +1,23 @@
 //! Integration tests for design tools (task 6) and extraction tools (task 7).
 
+use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use serde_json::{Value, json};
 
-struct Server { child: Child, stdin: ChildStdin, out: BufReader<ChildStdout> }
+struct Server {
+    child: Child,
+    stdin: ChildStdin,
+    out: BufReader<ChildStdout>,
+}
 impl Server {
     fn start() -> Self {
         let bin = env!("CARGO_BIN_EXE_slides-mcp-server");
-        let mut child = Command::new(bin).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().expect("spawn");
+        let mut child = Command::new(bin)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn");
         let stdin = child.stdin.take().unwrap();
         let out = BufReader::new(child.stdout.take().unwrap());
         let mut s = Server { child, stdin, out };
@@ -17,10 +26,20 @@ impl Server {
         s.send(json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
         s
     }
-    fn send(&mut self, v: Value) { writeln!(self.stdin, "{v}").unwrap(); self.stdin.flush().unwrap(); }
+    fn send(&mut self, v: Value) {
+        writeln!(self.stdin, "{v}").unwrap();
+        self.stdin.flush().unwrap();
+    }
     fn read_id(&mut self, id: i64) -> Value {
         let mut line = String::new();
-        loop { line.clear(); self.out.read_line(&mut line).unwrap(); let m: Value = serde_json::from_str(line.trim()).unwrap(); if m.get("id") == Some(&json!(id)) { return m; } }
+        loop {
+            line.clear();
+            self.out.read_line(&mut line).unwrap();
+            let m: Value = serde_json::from_str(line.trim()).unwrap();
+            if m.get("id") == Some(&json!(id)) {
+                return m;
+            }
+        }
     }
     fn call(&mut self, id: i64, name: &str, args: Value) -> Value {
         self.send(json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":name,"arguments":args}}));
@@ -29,7 +48,11 @@ impl Server {
         serde_json::from_str(text).unwrap()
     }
 }
-impl Drop for Server { fn drop(&mut self) { let _ = self.child.kill(); } }
+impl Drop for Server {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+    }
+}
 
 #[test]
 fn list_palettes_returns_data() {
@@ -63,15 +86,23 @@ fn apply_layout_pattern_two_column() {
     s.call(id, "add_slide", json!({"handle": &h, "layout": "blank"}));
     id += 1;
 
-    let r = s.call(id, "apply_layout_pattern", json!({
-        "handle": &h, "slide": 0, "pattern": "two_column",
-        "title": "Comparison", "items": ["Left point", "Right point"]
-    }));
+    let r = s.call(
+        id,
+        "apply_layout_pattern",
+        json!({
+            "handle": &h, "slide": 0, "pattern": "two_column",
+            "title": "Comparison", "items": ["Left point", "Right point"]
+        }),
+    );
     id += 1;
     assert_eq!(r["status"], "success", "apply_layout_pattern failed: {r}");
 
     let out = std::env::temp_dir().join("slides_mcp_design_pat.pptx");
-    let r = s.call(id, "save_presentation", json!({"handle": &h, "output_path": out.to_str().unwrap()}));
+    let r = s.call(
+        id,
+        "save_presentation",
+        json!({"handle": &h, "output_path": out.to_str().unwrap()}),
+    );
     assert_eq!(r["status"], "success");
     std::fs::remove_file(&out).ok();
 }
@@ -84,18 +115,34 @@ fn lint_design_returns_findings() {
     let r = s.call(id, "create_presentation", json!({}));
     let h = r["data"]["handle"].as_str().unwrap().to_string();
     id += 1;
-    s.call(id, "add_slide", json!({"handle": &h, "layout": "title_content"}));
+    s.call(
+        id,
+        "add_slide",
+        json!({"handle": &h, "layout": "title_content"}),
+    );
     id += 1;
-    s.call(id, "set_title", json!({"handle": &h, "slide": 0, "text": "Test"}));
+    s.call(
+        id,
+        "set_title",
+        json!({"handle": &h, "slide": 0, "text": "Test"}),
+    );
     id += 1;
 
     // Save + reopen for lint_design to access scene
     let path = std::env::temp_dir().join(format!("slides_mcp_lint_{}.pptx", std::process::id()));
-    s.call(id, "save_presentation", json!({"handle": &h, "output_path": path.to_str().unwrap()}));
+    s.call(
+        id,
+        "save_presentation",
+        json!({"handle": &h, "output_path": path.to_str().unwrap()}),
+    );
     id += 1;
     s.call(id, "close_presentation", json!({"handle": &h}));
     id += 1;
-    let r = s.call(id, "open_presentation", json!({"file_path": path.to_str().unwrap()}));
+    let r = s.call(
+        id,
+        "open_presentation",
+        json!({"file_path": path.to_str().unwrap()}),
+    );
     let h = r["data"]["handle"].as_str().unwrap().to_string();
     id += 1;
 
@@ -114,9 +161,17 @@ fn extract_outline_returns_structure() {
     let r = s.call(id, "create_presentation", json!({}));
     let h = r["data"]["handle"].as_str().unwrap().to_string();
     id += 1;
-    s.call(id, "add_slide", json!({"handle": &h, "layout": "title_content"}));
+    s.call(
+        id,
+        "add_slide",
+        json!({"handle": &h, "layout": "title_content"}),
+    );
     id += 1;
-    s.call(id, "set_title", json!({"handle": &h, "slide": 0, "text": "Outline Test"}));
+    s.call(
+        id,
+        "set_title",
+        json!({"handle": &h, "slide": 0, "text": "Outline Test"}),
+    );
     id += 1;
 
     let r = s.call(id, "extract_outline", json!({"handle": &h}));
@@ -133,9 +188,17 @@ fn to_markdown_returns_string() {
     let r = s.call(id, "create_presentation", json!({}));
     let h = r["data"]["handle"].as_str().unwrap().to_string();
     id += 1;
-    s.call(id, "add_slide", json!({"handle": &h, "layout": "title_content"}));
+    s.call(
+        id,
+        "add_slide",
+        json!({"handle": &h, "layout": "title_content"}),
+    );
     id += 1;
-    s.call(id, "set_title", json!({"handle": &h, "slide": 0, "text": "MD Test"}));
+    s.call(
+        id,
+        "set_title",
+        json!({"handle": &h, "slide": 0, "text": "MD Test"}),
+    );
     id += 1;
 
     let r = s.call(id, "to_markdown", json!({"handle": &h}));

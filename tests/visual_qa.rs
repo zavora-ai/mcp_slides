@@ -3,7 +3,7 @@
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 struct Server {
     child: Child,
@@ -63,31 +63,58 @@ impl Drop for Server {
     }
 }
 
-fn open_deck_with_content(s: &mut Server, id: &mut i64, suffix: &str) -> (String, std::path::PathBuf) {
+fn open_deck_with_content(
+    s: &mut Server,
+    id: &mut i64,
+    suffix: &str,
+) -> (String, std::path::PathBuf) {
     let created = s.call(*id, "create_presentation", json!({}));
     assert_eq!(created["status"], "success");
     let h = created["data"]["handle"].as_str().unwrap().to_string();
     *id += 1;
 
-    let r = s.call(*id, "add_slide", json!({"handle": &h, "layout": "title_content"}));
+    let r = s.call(
+        *id,
+        "add_slide",
+        json!({"handle": &h, "layout": "title_content"}),
+    );
     assert_eq!(r["status"], "success");
     *id += 1;
 
-    s.call(*id, "set_title", json!({"handle": &h, "slide": 0, "text": "QA Test"}));
+    s.call(
+        *id,
+        "set_title",
+        json!({"handle": &h, "slide": 0, "text": "QA Test"}),
+    );
     *id += 1;
 
-    s.call(*id, "add_bullets", json!({"handle": &h, "slide": 0, "items": [{"text": "Item one"}]}));
+    s.call(
+        *id,
+        "add_bullets",
+        json!({"handle": &h, "slide": 0, "items": [{"text": "Item one"}]}),
+    );
     *id += 1;
 
-    let path = std::env::temp_dir().join(format!("slides_mcp_qa_{suffix}_{}.pptx", std::process::id()));
-    let r = s.call(*id, "save_presentation", json!({"handle": &h, "output_path": path.to_str().unwrap()}));
+    let path = std::env::temp_dir().join(format!(
+        "slides_mcp_qa_{suffix}_{}.pptx",
+        std::process::id()
+    ));
+    let r = s.call(
+        *id,
+        "save_presentation",
+        json!({"handle": &h, "output_path": path.to_str().unwrap()}),
+    );
     assert_eq!(r["status"], "success");
     *id += 1;
 
     s.call(*id, "close_presentation", json!({"handle": &h}));
     *id += 1;
 
-    let r = s.call(*id, "open_presentation", json!({"file_path": path.to_str().unwrap()}));
+    let r = s.call(
+        *id,
+        "open_presentation",
+        json!({"file_path": path.to_str().unwrap()}),
+    );
     assert_eq!(r["status"], "success", "open failed: {r}");
     let handle = r["data"]["handle"].as_str().unwrap().to_string();
     *id += 1;
@@ -138,10 +165,14 @@ fn diff_slide_render_invalid_input() {
     let id = 2;
 
     // Passing invalid base64 should return error
-    let r = s.call(id, "diff_slide_render", json!({
-        "render_a": "not-valid-base64!!!",
-        "render_b": "also-not-valid!!!"
-    }));
+    let r = s.call(
+        id,
+        "diff_slide_render",
+        json!({
+            "render_a": "not-valid-base64!!!",
+            "render_b": "also-not-valid!!!"
+        }),
+    );
     assert_eq!(r["status"], "error");
     assert_eq!(r["category"], "invalid_input");
 }

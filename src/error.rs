@@ -21,10 +21,14 @@ fn classify(e: &SlideError) -> (&'static str, &'static str) {
             (category::IO_ERROR, "Verify the path and file permissions.")
         }
         SlideError::InvalidInput(_) => (category::INVALID_INPUT, "Check the tool parameters."),
-        SlideError::Unsupported(_) => {
-            (category::ENGINE_UNSUPPORTED, "This capability is not yet available.")
-        }
-        SlideError::Oxml(_) => (category::IO_ERROR, "The presentation XML could not be processed."),
+        SlideError::Unsupported(_) => (
+            category::ENGINE_UNSUPPORTED,
+            "This capability is not yet available.",
+        ),
+        SlideError::Oxml(_) => (
+            category::IO_ERROR,
+            "The presentation XML could not be processed.",
+        ),
     }
 }
 
@@ -54,10 +58,8 @@ mod tests {
             serde_json::from_str(&engine_error(SlideError::NotFound("slide 3".into()))).unwrap();
         assert_eq!(v["category"], category::NOT_FOUND);
 
-        let v: Value = serde_json::from_str(&engine_error(SlideError::Unsupported(
-            "render".into(),
-        )))
-        .unwrap();
+        let v: Value =
+            serde_json::from_str(&engine_error(SlideError::Unsupported("render".into()))).unwrap();
         assert_eq!(v["category"], category::ENGINE_UNSUPPORTED);
 
         let v: Value = serde_json::from_str(&unknown_handle("abc")).unwrap();

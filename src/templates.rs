@@ -4,19 +4,26 @@
 //! filling provided keys and leaving sensible placeholders for missing ones.
 //! `catalog()` describes each template's accepted fields for `list_templates`.
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use zavora_slide::{Bullet, Layout, Presentation, ThemeSpec};
 
 /// Read a string field from `data`, or a placeholder.
 fn s<'a>(data: &'a Value, key: &str, default: &'a str) -> String {
-    data.get(key).and_then(Value::as_str).unwrap_or(default).to_string()
+    data.get(key)
+        .and_then(Value::as_str)
+        .unwrap_or(default)
+        .to_string()
 }
 
 /// Read an array of strings (for bullet lists).
 fn list(data: &Value, key: &str) -> Vec<String> {
     data.get(key)
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -28,24 +35,39 @@ fn bullets(items: &[String]) -> Vec<Bullet> {
 pub fn build(name: &str, data: &Value) -> Option<Presentation> {
     let mut p = Presentation::new();
     if let Some(accent) = data.get("accent").and_then(Value::as_str) {
-        p.apply_theme(&ThemeSpec { accent: Some(accent.to_string()), ..Default::default() });
+        p.apply_theme(&ThemeSpec {
+            accent: Some(accent.to_string()),
+            ..Default::default()
+        });
     }
     match name {
         "pitch" => {
-            title_slide(&mut p, &s(data, "company", "Company"), &s(data, "tagline", "Tagline"));
+            title_slide(
+                &mut p,
+                &s(data, "company", "Company"),
+                &s(data, "tagline", "Tagline"),
+            );
             bullet_slide(&mut p, "Problem", &list(data, "problem"));
             bullet_slide(&mut p, "Solution", &list(data, "solution"));
             bullet_slide(&mut p, "Market", &list(data, "market"));
             bullet_slide(&mut p, "Ask", &list(data, "ask"));
         }
         "quarterly_review" => {
-            title_slide(&mut p, &s(data, "title", "Quarterly Review"), &s(data, "period", "Q1"));
+            title_slide(
+                &mut p,
+                &s(data, "title", "Quarterly Review"),
+                &s(data, "period", "Q1"),
+            );
             bullet_slide(&mut p, "Highlights", &list(data, "highlights"));
             bullet_slide(&mut p, "Metrics", &list(data, "metrics"));
             bullet_slide(&mut p, "Next Quarter", &list(data, "next"));
         }
         "training" => {
-            title_slide(&mut p, &s(data, "title", "Training"), &s(data, "subtitle", ""));
+            title_slide(
+                &mut p,
+                &s(data, "title", "Training"),
+                &s(data, "subtitle", ""),
+            );
             bullet_slide(&mut p, "Objectives", &list(data, "objectives"));
             bullet_slide(&mut p, "Agenda", &list(data, "agenda"));
             bullet_slide(&mut p, "Summary", &list(data, "summary"));
@@ -118,7 +140,11 @@ mod tests {
 
     #[test]
     fn fills_data() {
-        let p = build("pitch", &json!({"company": "Acme", "problem": ["slow", "costly"]})).unwrap();
+        let p = build(
+            "pitch",
+            &json!({"company": "Acme", "problem": ["slow", "costly"]}),
+        )
+        .unwrap();
         // title + 4 section slides
         assert_eq!(p.slide_count(), 5);
     }

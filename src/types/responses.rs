@@ -3,7 +3,7 @@
 //! Success: `{ "status": "success", "message": ..., "data": { ... } }`
 //! Error:   `{ "status": "error", "category": ..., "message": ..., "suggestion": ... }`
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 /// Build a success response and serialize it to a JSON string.
 pub fn success(message: impl Into<String>, data: Value) -> String {
@@ -31,7 +31,8 @@ mod tests {
         assert_eq!(s["status"], "success");
         assert_eq!(s["data"]["n"], 1);
 
-        let e: Value = serde_json::from_str(&error("not_found", "missing", "create first")).unwrap();
+        let e: Value =
+            serde_json::from_str(&error("not_found", "missing", "create first")).unwrap();
         assert_eq!(e["status"], "error");
         assert_eq!(e["category"], "not_found");
         assert_eq!(e["suggestion"], "create first");

@@ -1,8 +1,8 @@
 //! Input structs for the MCP tools. All deny unknown fields so agents get a
 //! clear error on typos rather than silently-ignored parameters.
 
-use serde::Deserialize;
 use rmcp::schemars;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
