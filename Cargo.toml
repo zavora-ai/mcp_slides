@@ -12,7 +12,9 @@ readme = "README.md"
 exclude = [".cargo/"]
 
 [dependencies]
-rmcp = { version = "1.7", features = ["server", "transport-io", "macros"] }
+# schemars is implied by "server" but named here because the code refers to
+# rmcp::schemars directly.
+rmcp = { version = "3.1.2", features = ["server", "transport-io", "macros", "schemars"] }
 zavora-slide = "0.1"
 zavora-slide-oxml = "0.1"
 tokio = { version = "1", features = ["full"] }
