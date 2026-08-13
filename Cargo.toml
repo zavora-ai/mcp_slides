@@ -2,6 +2,7 @@
 name = "slides-mcp-server"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.94.1"
 description = "Slides MCP Server — create, edit, and export PowerPoint (.pptx) presentations for AI agents"
 license = "Apache-2.0"
 repository = "https://github.com/zavora-ai/mcp_slides"
@@ -15,6 +16,7 @@ exclude = [".cargo/"]
 # schemars is implied by "server" but named here because the code refers to
 # rmcp::schemars directly.
 rmcp = { version = "3.1.2", features = ["server", "transport-io", "macros", "schemars"] }
+adk-mcp-sdk = { version = "0.2.0", git = "https://github.com/zavora-ai/adk-mcp-sdk.git", rev = "4dac4301441a8a51a042fd66cc1798f0ec3e3f55" }
 zavora-slide = "0.1"
 zavora-slide-oxml = "0.1"
 tokio = { version = "1", features = ["full"] }

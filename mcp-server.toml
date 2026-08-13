@@ -1,10 +1,10 @@
-server_id = "slides_mcp"
+server_id = "mcp_slides"
 display_name = "Slides"
 version = "0.1.0"
 domain = "presentations"
-sdk_version = "0.1.0"
-risk_level = "low"
-writes_allowed = "yes"
+sdk_version = "0.2.0"
+risk_level = "high"
+writes_allowed = "gated"
 transports = ["stdio"]
 credentials = []
 governance_gates = []
@@ -12,29 +12,29 @@ environments = ["development", "staging", "production"]
 
 [[tools]]
 name = "create_presentation"
-description = "Create a new presentation. format: omit or 'blank' for a blank 16:9 deck (business:* deck templates land in a later phase). Returns a handle."
-risk_class = "local_write"
+description = "Create a new presentation. format: omit or 'blank' for a blank 16:9 deck, \\         or 'business:<pitch|quarterly_review|training|roadmap>' with an optional `data` object to \\         fill a template (see list_templates). Returns a handle."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "open_presentation"
-description = "Open an existing .pptx file from disk. Returns a handle. Faithful round-trip on save if unedited; editing an opened deck rebuilds from extracted text (lossy)."
-risk_class = "local_write"
+description = "Open an existing .pptx file from disk. Returns a handle. Faithful round-trip \\         on save if unedited; editing an opened deck currently rebuilds from extracted text (lossy)."
+risk_class = "file_code_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "save_presentation"
 description = "Save a presentation to disk as .pptx."
-risk_class = "local_write"
+risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "close_presentation"
 description = "Close a presentation and free its memory."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
@@ -54,92 +54,92 @@ credential_bindings = []
 
 [[tools]]
 name = "add_slide"
-description = "Add a slide. layout: title, title_content (default), section_header, two_content, blank. Returns the new slide index."
-risk_class = "local_write"
+description = "Add a slide. layout: title, title_content (default), section_header, \\         two_content, blank. Returns the new slide index."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "duplicate_slide"
 description = "Duplicate the slide at `slide`; the copy is inserted right after it."
-risk_class = "local_write"
+risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "delete_slide"
 description = "Delete the slide at `slide`."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "move_slide"
 description = "Move the slide at `from` to position `to`."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_slide_layout"
-description = "Set a slide's layout (title, title_content, section_header, two_content, blank)."
-risk_class = "local_write"
+description = "Set a slide's layout. Accepted: title, title_content, section_header, \\         two_content, blank. (Phase 0 uses a single structural layout; this validates the name.)"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_title"
 description = "Set the title text of a slide."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "add_bullets"
 description = "Set the body bullets of a slide. Each item: text, optional level (0=top), optional bold."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "add_text_box"
 description = "Add a positioned text box (position/size in inches) with optional formatting."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_notes"
 description = "Set the speaker notes of a slide."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "format_text"
-description = "Apply character formatting (bold/italic/underline/size_pt) to a placeholder's text (\"title\" or \"body\") on an opened slide, editing it in place."
-risk_class = "local_write"
+description = "Apply character formatting (bold/italic/underline/size_pt) to a placeholder's \\         text (\"title\" or \"body\") on an opened slide, editing it in place."
+risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "apply_theme"
 description = "Apply a theme to the deck: accent color (overrides accent1) and heading/body fonts."
-risk_class = "local_write"
+risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_background"
-description = "Set a slide's background to a solid color (hex)."
-risk_class = "local_write"
+description = "Set a slide's background to a solid color (hex, e.g. \"#F5F5F5\") via `color`, \\         or to a stretched PNG/JPEG via `image_path`."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_slide_size"
-description = "Set the deck slide size: 16:9 (default), 4:3, or 16:10."
-risk_class = "local_write"
+description = "Set the deck slide size: \"16:9\" (default), \"4:3\", or \"16:10\"."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
@@ -160,349 +160,349 @@ credential_bindings = []
 [[tools]]
 name = "add_image"
 description = "Add an image (PNG/JPEG) to a slide at the given position/size in inches."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "add_shape"
-description = "Add an auto-shape (rect, round_rect, ellipse, triangle, arrow, line, callout) with optional fill/outline."
-risk_class = "local_write"
+description = "Add an auto-shape: rect, round_rect, ellipse, triangle, arrow, line, callout. \\         Position/size in inches; optional fill/outline hex."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "add_table"
 description = "Add a table to a slide. Returns the table index for set_table_cell."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_table_cell"
 description = "Set the text of a table cell (table index from add_table)."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "render_slide"
 description = "Render a slide to an image file. format: 'png' (default) or 'svg'."
-risk_class = "local_write"
+risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "save_pdf"
 description = "Export the whole deck to a PDF (one page per slide)."
-risk_class = "local_write"
+risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "add_paragraph"
-description = "Add a paragraph to a shape's text frame. Appends or inserts at a position."
-risk_class = "local_write"
+description = "Add a paragraph to a shape's text frame. If `position` is omitted, \\         appends to the end; otherwise inserts at the given 0-based index. \\         Requires an opened deck (not a newly-created one)."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "delete_paragraph"
-description = "Delete a paragraph by index from a shape's text frame."
-risk_class = "local_write"
+description = "Delete a paragraph by index from a shape's text frame. \\         Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "move_paragraph"
-description = "Reorder a paragraph within a shape's text frame."
-risk_class = "local_write"
+description = "Move (reorder) a paragraph within a shape's text frame. \\         Moves the paragraph at index `from` to index `to`. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_paragraph_format"
-description = "Set paragraph properties: alignment, level, spacing, line-spacing, bullet."
-risk_class = "local_write"
-requires_approval = false
-credential_bindings = []
-
-[[tools]]
-name = "add_run"
-description = "Add a run (text span) to a paragraph in a shape's text frame. Appends to the end of the paragraph. Optional formatting: bold, italic, size_pt, font, color. Requires an opened deck."
-risk_class = "local_write"
-requires_approval = false
-credential_bindings = []
-
-[[tools]]
-name = "edit_run"
-description = "Edit (replace) the text content of an existing run in a paragraph. The run's formatting is preserved. Requires an opened deck."
-risk_class = "local_write"
-requires_approval = false
-credential_bindings = []
-
-[[tools]]
-name = "delete_run"
-description = "Delete a run (or line break) by index from a paragraph. Requires an opened deck."
-risk_class = "local_write"
-requires_approval = false
-credential_bindings = []
-
-[[tools]]
-name = "add_line_break"
-description = "Insert a line break (BR element) into a paragraph. If position is omitted, appends to the end; otherwise inserts at the given run index. Requires an opened deck."
-risk_class = "local_write"
-requires_approval = false
-credential_bindings = []
-
-[[tools]]
-name = "set_run_format"
-description = "Set run formatting (character properties) on an existing run. Supports bold, italic, underline_style, size_pt, font, color (RGB hex), theme_color, strikethrough, baseline (superscript/subscript), and lang. All fields optional; only specified ones change."
-risk_class = "local_write"
+description = "Set paragraph formatting properties: alignment, level, spacing, \\         line-spacing, bullet. All properties are optional; only specified ones are changed. \\         Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_autofit"
-description = "Set the text-frame autofit behavior on a shape. Modes: \"none\" (text can overflow), \"shrink\" (shrink text on overflow), \"resize\" (resize shape to fit text). Optional font_scale_pct for shrink mode."
-risk_class = "local_write"
+description = "Set the text-frame autofit behavior on a shape. Modes: \\         \"none\" (text can overflow), \"shrink\" (shrink text on overflow), \\         \"resize\" (resize shape to fit text). Optional font_scale_pct for shrink mode. \\         Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_shape_geometry"
-description = "Set the position (left/top), size (width/height) in inches, and optional rotation (degrees) of a shape. Requires an opened deck."
-risk_class = "local_write"
+description = "Set the position (left/top), size (width/height) in inches, and optional \\         rotation (degrees, clockwise) of a shape. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "delete_shape"
 description = "Delete a shape by index from a slide. Requires an opened deck."
-risk_class = "local_write"
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "reorder_shape"
-description = "Move a shape to a different z-order position within the slide. Requires an opened deck."
-risk_class = "local_write"
+description = "Move a shape to a different z-order position within the slide. \\         Moves the shape at index `from` to index `to`. Requires an opened deck."
+risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_shape_fill"
-description = "Set the fill of a shape. fill_type: solid/gradient/pattern/none. Color accepts RGB hex or theme name. Requires an opened deck."
-risk_class = "local_write"
+description = "Set the fill of a shape. fill_type: \"solid\" (requires color), \\         \"gradient\" (requires gradient_stops + optional gradient_angle_deg), \\         \"pattern\" (requires pattern_preset + pattern_fg + pattern_bg), or \"none\". \\         Color accepts RGB hex (\"#FF0000\") or theme name (\"accent1\"). Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_shape_line"
-description = "Set the outline (line) of a shape. line_type: styled (color + width_pt, optional dash) or none. Requires an opened deck."
-risk_class = "local_write"
+description = "Set the outline (line) of a shape. line_type: \"styled\" (requires color + width_pt, \\         optional dash) or \"none\". Color accepts RGB hex or theme name. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "inspect_slide"
-description = "Inspect a slide's layout: returns element bounding boxes, kinds, z-order, and findings for layout problems. Deterministic, read-only."
+description = "Inspect a slide's layout: returns element bounding boxes, kinds, \\         z-order, and findings (off-canvas, overlaps, margin violations, frame overflow, \\         zero-area). Deterministic. Requires an opened deck."
 risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "check_contrast"
-description = "Check WCAG contrast and minimum font size on a slide. Returns per-run findings. Deterministic, read-only."
+description = "Check WCAG contrast and minimum font size on a slide. Returns \\         per-run contrast findings and undersized-text flags. Deterministic. Requires an opened deck."
 risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "diff_slide_render"
-description = "Compare two base64-encoded PNG renders and return a changed-region summary. Deterministic, read-only."
+description = "Compare two render states of a slide and return a changed-region \\         summary. Pass render_a and render_b as base64-encoded PNG data (from render_slide). \\         Deterministic. Requires an opened deck."
 risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "table_add_row"
-description = "Add a row to a table. Appends at the bottom."
-risk_class = "local_write"
+description = "Add a row to a table. Appends at the bottom. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "table_remove_row"
-description = "Remove a row from a table by index."
-risk_class = "local_write"
+description = "Remove a row from a table by index. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "table_add_column"
-description = "Add a column to a table. Appends at the right."
-risk_class = "local_write"
+description = "Add a column to a table. Appends at the right. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "table_remove_column"
-description = "Remove a column from a table by index."
-risk_class = "local_write"
+description = "Remove a column from a table by index. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "merge_cells"
-description = "Merge a rectangular region of table cells."
-risk_class = "local_write"
+description = "Merge a rectangular region of table cells. Requires an opened deck."
+risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "split_cell"
-description = "Split a previously merged table cell back to individual cells."
-risk_class = "local_write"
+description = "Split a previously merged table cell back to individual cells. Requires an opened deck."
+risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_table_sizing"
-description = "Set column width or row height in a table. dimension: column or row. Size in inches."
-risk_class = "local_write"
+description = "Set column width or row height in a table. dimension: \"column\" or \"row\". Size in inches."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_cell_text"
-description = "Set the text content of a table cell."
-risk_class = "local_write"
+description = "Set the text content of a table cell. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_cell_style"
-description = "Set the style (fill color) of a table cell."
-risk_class = "local_write"
+description = "Set the style (fill color) of a table cell. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_image_crop"
-description = "Set crop on a picture shape. Values are percentage of image to crop from each side (0-100)."
-risk_class = "local_write"
+description = "Set crop on a picture shape. Values are percentage of image to crop from each side (0–100). Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_image_rotation"
-description = "Set rotation on a picture shape, in degrees clockwise."
-risk_class = "local_write"
+description = "Set rotation on a picture shape, in degrees clockwise. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "list_palettes"
-description = "List available color palettes with their swatches and intended tone."
+description = "List available color palettes with their swatches and intended tone. Read-only."
 risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "list_font_pairings"
-description = "List available font pairings (heading + body font combinations)."
+description = "List available font pairings (heading + body font combinations). Read-only."
 risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "apply_layout_pattern"
-description = "Apply a layout pattern to a slide (two_column, icon_rows, stat, quote, divider, image_caption)."
-risk_class = "local_write"
+description = "Apply a layout pattern to a slide (two_column, icon_rows, stat, quote, divider, image_caption). Populates shapes from parameters. Requires an opened deck."
+risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "lint_design"
-description = "Lint a slide for design anti-patterns. Read-only."
+description = "Lint a slide for design anti-patterns (text-only, centered body, too many fonts, undersized title). Read-only."
 risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "extract_outline"
-description = "Extract a structured JSON outline of the entire deck (titles, body, tables, notes). Read-only."
+description = "Extract a structured JSON outline of the entire deck (titles, body paragraphs with level, tables as grids, shape text, alt-text, notes). Read-only."
 risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_hyperlink"
-description = "Set a hyperlink on a text run."
-risk_class = "local_write"
+description = "Set a hyperlink on a text run. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_click_action"
-description = "Set a click action on a shape (external URL or jump to slide)."
-risk_class = "local_write"
+description = "Set a click action on a shape (external URL or jump to slide). Requires an opened deck."
+risk_class = "external_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "get_doc_properties"
-description = "Get document core properties (title, author, subject, etc.)."
+description = "Get document core properties (title, author, subject, etc.). Read-only."
 risk_class = "read_only"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_doc_properties"
-description = "Set document core properties (title, author, subject, keywords, comments, category)."
-risk_class = "local_write"
+description = "Set document core properties (title, author, subject, keywords, comments, category). Only specified fields are updated."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_footer"
-description = "Set or hide footer text on a slide."
-risk_class = "local_write"
+description = "Set or hide footer on a slide. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "add_autoshape"
-description = "Add an autoshape by OOXML preset name. Position/size in inches."
-risk_class = "local_write"
+description = "Add an autoshape by OOXML preset name (e.g. star5, heart, cloud, hexagon). Position/size in inches. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "add_connector"
-description = "Add a connector shape (straight, elbow, curved). Position/size in inches."
-risk_class = "local_write"
+description = "Add a connector shape (straight, elbow, curved). Position/size in inches. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "add_freeform"
-description = "Add a freeform shape from a series of points. Position/size in inches."
-risk_class = "local_write"
+description = "Add a freeform shape from a series of points. Position/size in inches. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "add_chart"
-description = "Add a chart (bar, column, line, pie, area, scatter) to a slide."
-risk_class = "local_write"
+description = "Add a chart to a slide. Types: bar, column, line, pie, area, scatter. Position/size in inches."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
 
 [[tools]]
 name = "set_chart_data"
-description = "Update the data (categories + series) of an existing chart."
-risk_class = "local_write"
+description = "Update the data (categories + series) of an existing chart. Requires an opened deck."
+risk_class = "internal_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_run"
+description = "Add a run (text span) to a paragraph in a shape's text frame. \\         Appends to the end of the paragraph. Optional formatting: bold, italic, size_pt, font, color. \\         Requires an opened deck."
+risk_class = "internal_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "edit_run"
+description = "Edit (replace) the text content of an existing run in a paragraph. \\         The run's formatting is preserved. Requires an opened deck."
+risk_class = "read_only"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "delete_run"
+description = "Delete a run (or line break) by index from a paragraph. \\         Requires an opened deck."
+risk_class = "internal_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "add_line_break"
+description = "Insert a line break (<a:br/>) into a paragraph. If `position` is \\         omitted, appends to the end; otherwise inserts at the given run index. \\         Requires an opened deck."
+risk_class = "internal_write"
+requires_approval = false
+credential_bindings = []
+
+[[tools]]
+name = "set_run_format"
+description = "Set run formatting (character properties) on an existing run. Supports \\         bold, italic, underline_style, size_pt, font, color (RGB hex), theme_color, \\         strikethrough, baseline (superscript/subscript), and lang. All fields are optional; \\         only specified ones are changed. Requires an opened deck."
+risk_class = "internal_write"
 requires_approval = false
 credential_bindings = []
