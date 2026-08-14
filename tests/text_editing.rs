@@ -152,11 +152,7 @@ fn manifest_tool_count_matches_server() {
         tool_count, manifest_count,
         "server.rs has {tool_count} #[tool] functions but mcp-server.toml has {manifest_count} [[tools]] entries"
     );
-    // Sanity: we should have at least 37 tools at this point.
-    assert!(
-        tool_count >= 37,
-        "Expected at least 37 tools, got {tool_count}"
-    );
+    assert_eq!(tool_count, 71, "Expected 71 tools, got {tool_count}");
 }
 
 // ─── Paragraph tool tests ───────────────────────────────────────────────────

@@ -45,7 +45,7 @@ impl Default for SlidesServer {
     }
 }
 
-#[tool_router(server_handler)]
+#[tool_router]
 impl SlidesServer {
     #[tool(
         description = "Create a new presentation. format: omit or 'blank' for a blank 16:9 deck, \
@@ -218,8 +218,9 @@ impl SlidesServer {
     }
 
     #[tool(
-        description = "Set a slide's layout. Accepted: title, title_content, section_header, \
-        two_content, blank. (Phase 0 uses a single structural layout; this validates the name.)"
+        description = "Validate a slide's intended layout name. Accepted: title, title_content, \
+        section_header, two_content, blank. Generated decks currently use one structural layout; \
+        use the content and design-pattern tools to arrange slide geometry."
     )]
     async fn set_slide_layout(&self, Parameters(input): Parameters<SetLayoutInput>) -> String {
         if Layout::parse(&input.layout).is_none() {
@@ -2096,4 +2097,11 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
         .decode(s)
         .or_else(|_| base64::engine::general_purpose::URL_SAFE.decode(s))
         .map_err(|e| format!("invalid base64: {e}"))
+}
+
+adk_mcp_sdk::mcp_2026_server! {
+    server: SlidesServer,
+    task_tools: ["render_slide", "diff_slide_render", "add_run", "edit_run", "delete_run", "set_run_format"],
+    approval_tools: [],
+    cache_ttl_ms: 60_000,
 }

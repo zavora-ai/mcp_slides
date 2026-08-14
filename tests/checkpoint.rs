@@ -1,4 +1,4 @@
-//! Phase 0 checkpoint: exercise the server's lifecycle tools end to end by
+//! Lifecycle checkpoint: exercise the server's core tools end to end by
 //! driving them over MCP stdio, and assert the saved file is a valid package.
 
 use std::io::{BufRead, BufReader, Write};

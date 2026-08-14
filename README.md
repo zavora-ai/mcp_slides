@@ -17,12 +17,12 @@ checking.
 ## Install
 
 ```bash
-cargo build --release
+cargo install slides-mcp-server
 ```
 
-The binary is `target/release/slides-mcp-server`.
+The installed binary is `slides-mcp-server`.
 
-> Requires [Rust](https://rustup.rs/) 1.85+. If you don't have Rust: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+> Requires [Rust](https://rustup.rs/) 1.94.1 or newer.
 
 ## Client Configuration
 
@@ -149,11 +149,11 @@ covers the rest: text overflowing its shape, elements off the slide, inconsisten
 A deck is a tree — slides hold shapes, shapes hold paragraphs, paragraphs hold runs — and the
 tools follow it. Anything that changes text takes the indices down to the level it operates on.
 
-`render_slide` returns the drawing but does not yet identify what is in it. If you need a
-rendering whose elements can be traced back to the shapes they came from — to make a click
-selectable, for instance — the engine gained that in
-[zavora-slide](https://github.com/zavora-ai/zavora-slide) as `SvgOptions { identify }`, and it
-will be exposed here once a release carries it.
+`render_slide` exposes the stable MCP rendering surface. Rust consumers that need SVG elements
+mapped directly back to source shapes can use the lower-level
+[`zavora-slide-render`](https://crates.io/crates/zavora-slide-render) API with
+`SvgOptions { identify }`; that engine capability remains available independently of the MCP
+tool schema.
 
 ## Build from source
 
@@ -176,4 +176,29 @@ Built with ❤️ by [Zavora AI](https://zavora.ai)
 
 ## rmcp and MCP compatibility
 
-This server is built with [`rmcp` 3.1.2](https://github.com/modelcontextprotocol/rust-sdk/releases/tag/rmcp-v3.1.2) and requires Rust 1.88 or newer. The rmcp 3 rollout retains legacy MCP initialization compatibility and targets MCP protocol revisions `2025-11-25` and `2026-07-28`.
+This server is built with [`rmcp` 3.1.2](https://github.com/modelcontextprotocol/rust-sdk/releases/tag/rmcp-v3.1.2) and requires Rust 1.94.1 or newer. The rmcp 3 rollout retains legacy MCP initialization compatibility and targets MCP protocol revisions `2025-11-25` and `2026-07-28`.
+
+## MCP 2026-07-28 rollout (P4 workflow/business)
+
+This server uses `rmcp` 3.1.2 and `adk-mcp-sdk` 0.2 with a minimum supported
+Rust version of **1.94.1**. It accepts stateless MCP 2026 requests with
+per-request protocol, client identity, and capability metadata while retaining
+the legacy MCP 2025-11-25 initialize flow for ordinary tools.
+
+- **Tasks:** `render_slide`, `diff_slide_render`, `add_run`, `edit_run`, `delete_run`, `set_run_format`
+- **MRTR approvals:** None; this server exposes no manifest-classified protected operations.
+- **Discovery and routing:** rmcp serves on-demand discovery and validates the
+  per-request protocol envelope; HTTP deployments can route with `Mcp-Method`
+  and `Mcp-Name`. The packaged binary currently uses stdio.
+- **Caching:** `tools/list` returns a public `ttlMs` of 60,000 for MCP 2026;
+  rmcp omits the cache fields for legacy clients.
+- **Deprecated extensions:** this server does not add new Roots, Sampling, or
+  dynamic client-registration dependencies.
+
+Protected tools require `MCP_REQUEST_STATE_KEY` with at least 32 high-entropy
+bytes. All replicas must share that key so sealed approval state can resume on
+another instance. Approval state is bound to the client identity, tool, and
+arguments and expires after two minutes. Missing identity, invalid state,
+rejection, or legacy protocol use fails closed. Task records are process-local
+for the current stdio runtime; use a durable task store before deploying the
+server behind scale-to-zero HTTP infrastructure.
