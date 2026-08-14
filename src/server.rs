@@ -218,8 +218,9 @@ impl SlidesServer {
     }
 
     #[tool(
-        description = "Set a slide's layout. Accepted: title, title_content, section_header, \
-        two_content, blank. (Phase 0 uses a single structural layout; this validates the name.)"
+        description = "Validate a slide's intended layout name. Accepted: title, title_content, \
+        section_header, two_content, blank. Generated decks currently use one structural layout; \
+        use the content and design-pattern tools to arrange slide geometry."
     )]
     async fn set_slide_layout(&self, Parameters(input): Parameters<SetLayoutInput>) -> String {
         if Layout::parse(&input.layout).is_none() {

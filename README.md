@@ -17,12 +17,12 @@ checking.
 ## Install
 
 ```bash
-cargo build --release
+cargo install slides-mcp-server
 ```
 
-The binary is `target/release/slides-mcp-server`.
+The installed binary is `slides-mcp-server`.
 
-> Requires [Rust](https://rustup.rs/) 1.85+. If you don't have Rust: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+> Requires [Rust](https://rustup.rs/) 1.94.1 or newer.
 
 ## Client Configuration
 
@@ -149,11 +149,11 @@ covers the rest: text overflowing its shape, elements off the slide, inconsisten
 A deck is a tree — slides hold shapes, shapes hold paragraphs, paragraphs hold runs — and the
 tools follow it. Anything that changes text takes the indices down to the level it operates on.
 
-`render_slide` returns the drawing but does not yet identify what is in it. If you need a
-rendering whose elements can be traced back to the shapes they came from — to make a click
-selectable, for instance — the engine gained that in
-[zavora-slide](https://github.com/zavora-ai/zavora-slide) as `SvgOptions { identify }`, and it
-will be exposed here once a release carries it.
+`render_slide` exposes the stable MCP rendering surface. Rust consumers that need SVG elements
+mapped directly back to source shapes can use the lower-level
+[`zavora-slide-render`](https://crates.io/crates/zavora-slide-render) API with
+`SvgOptions { identify }`; that engine capability remains available independently of the MCP
+tool schema.
 
 ## Build from source
 
