@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1] - 2026-08-25
+
+### Security
+
+- Upgraded the bundled `zavora-slide` engine family to 0.1.1, closing the
+  known `quick-xml` denial-of-service advisories while preserving DrawingML
+  entity references.
+
 ## [0.1.0] - 2026-08-14
 
 ### Added

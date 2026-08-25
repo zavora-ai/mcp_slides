@@ -451,7 +451,7 @@ pub struct SetParagraphFormatInput {
     pub space_after_pt: Option<f64>,
     /// Line spacing as a percentage (e.g. 150.0 = 1.5× line height).
     pub line_spacing_pct: Option<f64>,
-    /// Bullet style: "none", a character (e.g. "•", "–"), or "autonum:<type>"
+    /// Bullet style: "none", a character (e.g. "•", "–"), or `autonum:<type>`.
     /// where type is an OOXML auto-number type like "arabicPeriod".
     pub bullet: Option<String>,
 }
@@ -684,7 +684,7 @@ pub struct SetHyperlinkInput {
     pub shape_idx: usize,
     pub para_idx: usize,
     pub run_idx: usize,
-    /// URL to link to (e.g. "https://example.com").
+    /// URL to link to (e.g. <https://example.com>).
     pub url: String,
 }
 
